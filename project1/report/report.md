@@ -33,9 +33,7 @@ Reference: http://www.csie.ntu.edu.tw/~cyy/courses/vfx/papers/Debevec1997RHD.pdf
 
 According to this paper, we wanted to minimize $$O = \sum\limits_{i = 1}^{N}\sum\limits_{j = 1}^{P} \{w(Z_{ij})[g(Z_{ij}) - \ln{E_i} - \ln{\Delta t_j}]\}^2 + \lambda \sum\limits_{z = Z_{min} + 1}^{Z_{max} - 1} [w(z)g''(z)]^2$$.
 
-We first selected sample pixels by choosing a pixel for each intensity level in the image with a mid-range exposure time and the sample pixels of other images are at the same locations.
-
-Next, we obtained $g$ curves for each color channel independently by transforming the objective function into a least-squares problem and solving it.
+We first selected sample pixels and obtained $g$ curves for each color channel independently by transforming the objective function into a least-squares problem and solving it.
 
 ### Robertson's method
 
@@ -70,4 +68,6 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
 
 
 ## 6. Result
+
+### Camera Setting
 

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 Z_min = 0
 Z_max = 255
-dir_path = "./data"
+dir_path = "../data"
 
 def load_images(dir_path):
     list_path = os.path.join(dir_path, "image_list.txt")
@@ -20,22 +20,25 @@ def load_images(dir_path):
     
 def sample_pixels(images):
     n, _, _, c = images.shape       # Number of images, height, width, channels
-    num_sample = Z_max - Z_min + 1
+    num_sample = 64
     sampled_pixels = np.zeros((num_sample, n, c), dtype=np.uint8)
     sample_img = images[n // 2]
 
     for channel in range(c):
-        for i in range(num_sample):
+        p = 0
+        for i in range(0, 256, 4):
             rows, cols  = np.where(sample_img[:, :, channel] == i)
             if len(rows) != 0:
                 index = np.random.randint(0, len(rows))
-                sampled_pixels[i, :, channel] = images[:, rows[index], cols[index], channel]
+                sampled_pixels[p, :, channel] = images[:, rows[index], cols[index], channel]
+            p += 1
+
     return sampled_pixels
 
 def weighting(z):
     return np.where(z <= (Z_max + Z_min) / 2, z - Z_min, Z_max - z)
 
-def solve_Debevec_g(Z, B, l=500):
+def solve_Debevec_g(Z, B, l=100):
     n = 256             # Intensity levels
     N = Z.shape[0]      # Number of pixels sampled
     P = Z.shape[1]      # Number of images
@@ -69,19 +72,17 @@ def solve_Debevec_g(Z, B, l=500):
     # Solve Ax = b
     x = np.dot(np.linalg.pinv(A), b)
     g = x[:n].flatten()
-    # lnE = x[n:].flatten()
 
     return g
 
-def solve_Robertson_g(images, exposure_times):
-    iterate_times = 3
+def solve_Robertson_g(images, exposure_times, iterate_times=4):
     n, h, w, c = images.shape
     g_curves = []
     E = np.zeros((h, w, c)).astype(np.float32)
     exposure_times_3d = exposure_times[:, np.newaxis, np.newaxis]
 
     # Init g_curves to be linear functions
-    g_curves = [np.arange(0, 1, 1/256) for _ in range(c)]
+    g_curves = [np.arange(-1, 1, 2/256) for _ in range(c)]
     for channel in range(c):
         img_channel = images[..., channel]
         for i in range(iterate_times):
@@ -98,23 +99,31 @@ def solve_Robertson_g(images, exposure_times):
             for m in range(256):
                 index = np.where(img_channel == m)
                 size = index[0].size
-                numerator = np.sum(E[index[1][s]][index[2][s]][channel] * exposure_times[index[0][s]] for s in range(size))
+                numerator = np.sum([E[index[1][s]][index[2][s]][channel] * exposure_times[index[0][s]] for s in range(size)])
                 denominator = size
                 g_curves[channel][m] = numerator / denominator
             g_curves[channel] /= g_curves[channel][127]
     return g_curves
 
 def save_curves_image(curves, method):
-    _, ax = plt.subplots(1, 3, figsize=(20, 10))
-    channel_name = ["Blue", "Green", "Red"]
-    for channel in range(3):
-        c_n = channel_name[channel]
-        ax[channel].set_title( f"{c_n}", fontsize=25)
-        ax[channel].plot(curves[channel], np.arange(256), c=c_n)
-        ax[channel].set_xlabel("Log exposure X ")
-        ax[channel].set_ylabel("Pixel value Z")
-        ax[channel].grid(linestyle=":", linewidth=1)
+    channel_names = ["Blue", "Green", "Red"]
+    _, axes = plt.subplots(1, 3, figsize=(20, 10))
+    for ax, name, curve in zip(axes, channel_names, curves):
+        ax.set_title(name, fontsize=25)
+        ax.plot(curve, np.arange(256), c=name)
+        ax.set_xlabel("Log exposure X")
+        ax.set_ylabel("Pixel value Z")
+        ax.grid(linestyle=":", linewidth=1)
     plt.savefig(os.path.join(dir_path, f"{method}_curves.jpg"))
+
+    plt.figure(figsize=(6, 10))
+    plt.title("g curves", fontsize=25)
+    plt.xlabel("Log exposure X")
+    plt.ylabel("Pixel value Z")
+    plt.grid(linestyle=":", linewidth=1)
+    for name, curve in zip(channel_names, curves):
+        plt.plot(curve, np.arange(256), c=name)
+    plt.savefig(os.path.join(dir_path, f"{method}_curves_1.jpg"))
 
 def construct_hdr_radiance_map(images, log_exposure_times, g_curves):
     n, h, w, c = images.shape
@@ -140,18 +149,16 @@ def save_hdr_image(hdr_image, method):
     cv2.imwrite(os.path.join(dir_path, f"{method}.hdr"), hdr_image.astype(np.float32))
 
 def tone_mapping(hdr_image, method):
-    tonemapDrago = cv2.createTonemapDrago(2.0, 0.75)
+    tonemapDrago = cv2.createTonemapDrago(2.2, 1.5, 0.9)
     ldrDrago = tonemapDrago.process(hdr_image.astype(np.float32)) * 255
-    ldrDrago = np.clip(ldrDrago * 3, 0.0, 255.0)
     cv2.imwrite(os.path.join(dir_path, f"{method}_tonemap_drago.jpg"), ldrDrago.astype(np.uint8))
 
-    tonemapReinhard = cv2.createTonemapReinhard(2.2, 0, 0, 0)
+    tonemapReinhard = cv2.createTonemapReinhard(2.2, 1, 0, 0)
     ldrReinhard = tonemapReinhard.process(hdr_image) * 255
     cv2.imwrite(os.path.join(dir_path, f"{method}_tonemap_reinhard.jpg"), ldrReinhard.astype(np.uint8))
 
-    tonemapMantiuk = cv2.createTonemapMantiuk(2.2, 0.85, 1.2)
+    tonemapMantiuk = cv2.createTonemapMantiuk(2.2, 0.7)
     ldrMantiuk = tonemapMantiuk.process(hdr_image) * 255
-    ldrMantiuk = np.clip(ldrMantiuk * 3, 0.0, 255.0)
     cv2.imwrite(os.path.join(dir_path, f"{method}_tonemap_mantiuk.jpg"), ldrMantiuk.astype(np.uint8))
 
 def debevec_hdr(images, exposure_times):

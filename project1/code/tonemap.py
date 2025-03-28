@@ -108,18 +108,17 @@ def ReinhardLuminanceTonemap(irradiance: NDArray[np.float32], alpha = 0.18, l_wh
     return reduce_saturation(result, 0.8)
 
 def main():
-    # filename = "debevec"
-    filename = "robertson"
+    filenames = ["debevec", "robertson"]
 
-    hdr_img = load_hdr(filename)
-    toned_img = ReinhardLuminanceTonemap(hdr_img, alpha=0.45, l_white=30)
-    cv2.imwrite(f"../data/output/{filename}-ReinhardGray.JPG", toned_img)
-    toned_img = ReinhardEachColorTonemap(hdr_img, alpha=0.45, l_white=30)
-    cv2.imwrite(f"../data/output/{filename}-ReinhardSplit.JPG", toned_img)
-    toned_img = MinMaxTonemap(hdr_img)
-    cv2.imwrite(f"../data/output/{filename}-MinMax.JPG", toned_img)
-    # show_img(toned_img)
-    exit()
+    for filename in filenames:
+        hdr_img = load_hdr(filename)
+        toned_img = ReinhardLuminanceTonemap(hdr_img, alpha=0.45, l_white=30)
+        cv2.imwrite(f"../data/output/{filename}-ReinhardGray.JPG", toned_img)
+        toned_img = ReinhardEachColorTonemap(hdr_img, alpha=0.45, l_white=30)
+        cv2.imwrite(f"../data/output/{filename}-ReinhardSplit.JPG", toned_img)
+        toned_img = MinMaxTonemap(hdr_img)
+        cv2.imwrite(f"../data/output/{filename}-MinMax.JPG", toned_img)
+        # show_img(toned_img)
 
 
 if __name__ == "__main__":

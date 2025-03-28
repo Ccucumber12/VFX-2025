@@ -39,9 +39,9 @@ def sample_pixels(images):
     return sampled_pixels
 
 def weighting(z):
-    return np.where(z <= (Z_max + Z_min) / 2, z - Z_min, Z_max - z)
+    return np.where(z <= (Z_max + Z_min) / 2, z - Z_min, Z_max - z) + 1.
 
-def solve_Debevec_g(Z, B, l=500):
+def solve_Debevec_g(Z, B, l=10):
     n = 256             # Intensity levels
     N = Z.shape[0]      # Number of pixels sampled
     P = Z.shape[1]      # Number of images
@@ -111,16 +111,24 @@ def solve_Robertson_g(images, exposure_times):
     return g_curves
 
 def save_curves_image(curves, method):
-    _, ax = plt.subplots(1, 3, figsize=(20, 10))
-    channel_name = ["Blue", "Green", "Red"]
-    for channel in range(3):
-        c_n = channel_name[channel]
-        ax[channel].set_title( f"{c_n}", fontsize=25)
-        ax[channel].plot(curves[channel], np.arange(256), c=c_n)
-        ax[channel].set_xlabel("Log exposure X ")
-        ax[channel].set_ylabel("Pixel value Z")
-        ax[channel].grid(linestyle=":", linewidth=1)
+    channel_names = ["Blue", "Green", "Red"]
+    _, axes = plt.subplots(1, 3, figsize=(20, 10))
+    for ax, name, curve in zip(axes, channel_names, curves):
+        ax.set_title(name, fontsize=25)
+        ax.plot(curve, np.arange(256), c=name)
+        ax.set_xlabel("Log exposure X")
+        ax.set_ylabel("Pixel value Z")
+        ax.grid(linestyle=":", linewidth=1)
     plt.savefig(os.path.join(ldr_path, f"{method}_curves.jpg"))
+
+    plt.figure(figsize=(6, 10))
+    plt.title("g curves", fontsize=25)
+    plt.xlabel("Log exposure X")
+    plt.ylabel("Pixel value Z")
+    plt.grid(linestyle=":", linewidth=1)
+    for name, curve in zip(channel_names, curves):
+        plt.plot(curve, np.arange(256), c=name)
+    plt.savefig(os.path.join(ldr_path, f"{method}_curves_1.jpg"))
 
 def construct_hdr_radiance_map(images, log_exposure_times, g_curves):
     n, h, w, c = images.shape
@@ -131,8 +139,6 @@ def construct_hdr_radiance_map(images, log_exposure_times, g_curves):
         
         g = np.array([g_curves[channel][img_channel[k]] for k in range(n)])     # Shape (n, h, w)
         weight = np.array([weighting(img_channel[k]) for k in range(n)])        # Shape (n, h, w)
-        # weight = np.array([np.ones_like(img_channel[k]) for k in range(n)]) 
-        # This will fix the light problem, but I don't know why
 
         numerator = np.sum(weight * (g - log_exposure_times[:, np.newaxis, np.newaxis]), axis=0)
         denominator = np.sum(weight, axis=0)

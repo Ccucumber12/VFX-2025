@@ -17,7 +17,7 @@ This project involves assembling an HDR image from a series of photographs taken
 
 3. Tone mapping (Bonus)
    - Log Min-max Scaling
-   - Reinhard Method with Grayscale Image
+   - Reinhard Method with Split Channel
    - Reinhard Method with Grayscale Image
 
 ## 3. Image alignment

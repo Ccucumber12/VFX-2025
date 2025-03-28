@@ -82,39 +82,31 @@ def MinMaxTonemap(irradiance: NDArray[np.float32], l_pr = 1, u_pr = 99) -> NDArr
 def ReinhardEachColorTonemap(irradiance: NDArray[np.float32], alpha = 0.18, l_white = 100) -> NDArray[np.float32]:
     result = np.empty_like(irradiance)
     for i in range(3):
-        luminance = irradiance[:,:,i]
-        log_avg_lu = np.exp(np.average(np.log(1e-5 + luminance)))
-        l = luminance * alpha / log_avg_lu
-        ld = l / (1 + l) * (1 + l / (l_white ** 2))
-        result[:,:,i] = ld
-    return np.clip(result, 0, 1)
+        l_in = irradiance[:,:,i]
+        l_avg = np.exp(np.average(np.log(1e-5 + l_in)))
+        l_m = l_in * alpha / l_avg
+        l_out = l_m / (1 + l_m) * (1 + l_m / (l_white ** 2))
+        result[:,:,i] = l_out
+    return result
 
-def ReinhardTonemap(irradiance: NDArray[np.float32], alpha = 0.18, l_white = 100) -> NDArray[np.float32]:
-    l_in = cv2.cvtColor(irradiance, cv2.COLOR_BGR2GRAY)
+def ReinhardLuminanceTonemap(irradiance: NDArray[np.float32], alpha = 0.18, l_white = 100) -> NDArray[np.float32]:
+    l_in = 0.2126 * irradiance[:, :, 2] + 0.7152 * irradiance[:, :, 1] + 0.0722 * irradiance[:, :, 0]
     l_avg = np.exp(np.mean(np.log(1e-5 + l_in)))
     l_m = l_in * alpha / l_avg
-    l_out = np.clip(l_m / (1 + l_m) * (1 + l_m / (l_white ** 2)), 0, 1)
-    
-    result = np.empty_like(irradiance)
-    for i in range(3):
-        result[:,:,i] = irradiance[:,:,i] * l_out / l_in
-    return np.clip(result, 0, 1)
+    l_out = l_m / (1 + l_m) * (1 + l_m / (l_white ** 2))
+    result = irradiance * (l_out[..., np.newaxis] / (l_in[..., np.newaxis] + 1e-5))
+    return result
 
 def main():
-    filename = "debevec_200"
+    filename = "debevec"
 
     img = cv2.imread(f"../data/hdr/{filename}.hdr", cv2.IMREAD_UNCHANGED)
-    img = np.log(1e-6 + img)
-    show_channels(img)
-    exit()
-
     hdr_img = load_hdr(filename)
-    toned_img = ReinhardTonemap(hdr_img, alpha=0.3, l_white=30)
-    # toned_img = ReinhardEachColorTonemap(hdr_img, alpha=0.45, l_white=30)
+    # toned_img = ReinhardLuminanceTonemap(hdr_img, alpha=0.35, l_white=20)
+    toned_img = ReinhardEachColorTonemap(hdr_img, alpha=0.45, l_white=30)
     # toned_img = MinMaxTonemap(hdr_img)
-    toned_img = np.clip(toned_img * 255, 0, 255).astype('uint8')
-    # show_img(toned_img)
-    cv2.imwrite(f"../output/{filename}.JPG", toned_img)
+    show_img(toned_img)
+    # cv2.imwrite(f"../output/{filename}.JPG", toned_img)
     exit()
 
 

@@ -3,9 +3,12 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
+from utils import *
+
 Z_min = 0
 Z_max = 255
-dir_path = "../data"
+ldr_path = "../data/ldr/cosmology-hall"
+hdr_path = "../data/hdr/"
 
 def load_images(dir_path):
     list_path = os.path.join(dir_path, "image_list.txt")
@@ -114,7 +117,7 @@ def save_curves_image(curves, method):
         ax[channel].set_xlabel("Log exposure X ")
         ax[channel].set_ylabel("Pixel value Z")
         ax[channel].grid(linestyle=":", linewidth=1)
-    plt.savefig(os.path.join(dir_path, f"{method}_curves.jpg"))
+    plt.savefig(os.path.join(ldr_path, f"{method}_curves.jpg"))
 
 def construct_hdr_radiance_map(images, log_exposure_times, g_curves):
     n, h, w, c = images.shape
@@ -125,6 +128,8 @@ def construct_hdr_radiance_map(images, log_exposure_times, g_curves):
         
         g = np.array([g_curves[channel][img_channel[k]] for k in range(n)])     # Shape (n, h, w)
         weight = np.array([weighting(img_channel[k]) for k in range(n)])        # Shape (n, h, w)
+        # weight = np.array([np.ones_like(img_channel[k]) for k in range(n)]) 
+        # This will fix the light problem, but I don't know why
 
         numerator = np.sum(weight * (g - log_exposure_times[:, np.newaxis, np.newaxis]), axis=0)
         denominator = np.sum(weight, axis=0)
@@ -132,39 +137,45 @@ def construct_hdr_radiance_map(images, log_exposure_times, g_curves):
         ln_E_channel = np.where(denominator != 0, numerator / denominator, 0)
 
         ln_E[..., channel] = ln_E_channel
-    print(np.min(ln_E), np.max(ln_E))
-
     return np.exp(ln_E)
 
 def save_hdr_image(hdr_image, method):
-    cv2.imwrite(os.path.join(dir_path, f"{method}.hdr"), hdr_image.astype(np.float32))
+    cv2.imwrite(os.path.join(hdr_path, f"{method}.hdr"), hdr_image.astype(np.float32))
 
 def tone_mapping(hdr_image, method):
     tonemapDrago = cv2.createTonemapDrago(2.0, 0.75)
     ldrDrago = tonemapDrago.process(hdr_image.astype(np.float32)) * 255
     ldrDrago = np.clip(ldrDrago * 3, 0.0, 255.0)
-    cv2.imwrite(os.path.join(dir_path, f"{method}_tonemap_drago.jpg"), ldrDrago.astype(np.uint8))
+    cv2.imwrite(os.path.join(ldr_path, f"{method}_tonemap_drago.jpg"), ldrDrago.astype(np.uint8))
 
     tonemapReinhard = cv2.createTonemapReinhard(2.2, 0, 0, 0)
     ldrReinhard = tonemapReinhard.process(hdr_image) * 255
-    cv2.imwrite(os.path.join(dir_path, f"{method}_tonemap_reinhard.jpg"), ldrReinhard.astype(np.uint8))
+    cv2.imwrite(os.path.join(ldr_path, f"{method}_tonemap_reinhard.jpg"), ldrReinhard.astype(np.uint8))
 
     tonemapMantiuk = cv2.createTonemapMantiuk(2.2, 0.85, 1.2)
     ldrMantiuk = tonemapMantiuk.process(hdr_image) * 255
     ldrMantiuk = np.clip(ldrMantiuk * 3, 0.0, 255.0)
-    cv2.imwrite(os.path.join(dir_path, f"{method}_tonemap_mantiuk.jpg"), ldrMantiuk.astype(np.uint8))
+    cv2.imwrite(os.path.join(ldr_path, f"{method}_tonemap_mantiuk.jpg"), ldrMantiuk.astype(np.uint8))
 
 def debevec_hdr(images, exposure_times):
     print("Debevec's method:")
     log_exposure_times = np.log(exposure_times)
-    samples = sample_pixels(images)
-    print("After sampling images, samples.shape: ", samples.shape)
-    g_curves = []
-    for channel in range(3):
-        g = solve_Debevec_g(samples[:, :, channel], log_exposure_times)
-        g_curves.append(g)
-        print("After solving g for channel ", channel)
-    save_curves_image(g_curves, "debevec")
+
+    G_CURVES_SAVE = "../data/g_curves.npy"
+    if os.path.exists(G_CURVES_SAVE):
+        g_curves = np.load(G_CURVES_SAVE)
+        print("g loaded from file")
+    else:
+        samples = sample_pixels(images)
+        print("After sampling images, samples.shape: ", samples.shape)
+        g_curves = []
+        for channel in range(3):
+            g = solve_Debevec_g(samples[:, :, channel], log_exposure_times)
+            g_curves.append(g)
+            print("After solving g for channel ", channel)
+        save_curves_image(g_curves, "debevec")
+        np.save(G_CURVES_SAVE, g_curves)
+
     hdr = construct_hdr_radiance_map(images, log_exposure_times, g_curves)
     print("After constructing radiance map, hdr shape: ", hdr.shape)
     save_hdr_image(hdr, "debevec")
@@ -184,8 +195,7 @@ def robertson_hdr(images, exposure_times):
 
 
 def main():
-    images, exposure_times = load_images(dir_path)
-    n, width, height, _ = images.shape
+    images, exposure_times = load_images(ldr_path)
     print("After loading images, images.shape: ", images.shape)
     debevec_hdr(images, exposure_times)
     robertson_hdr(images, exposure_times)

@@ -76,7 +76,8 @@ def MinMaxTonemap(irradiance: NDArray[np.float32], l_pr = 1, u_pr = 99) -> NDArr
         lb = np.percentile(flatten, l_pr)
         ub = np.percentile(flatten, u_pr)
         luminance = np.clip(luminance, lb, ub)
-        result[:,:,i] = (luminance - lb) / (ub - lb)       
+        result[:,:,i] = (luminance - lb) / (ub - lb) 
+    result = np.clip(result * 255, 0, 255)      
     return result
 
 def ReinhardEachColorTonemap(irradiance: NDArray[np.float32], alpha = 0.18, l_white = 100) -> NDArray[np.float32]:
@@ -107,15 +108,17 @@ def ReinhardLuminanceTonemap(irradiance: NDArray[np.float32], alpha = 0.18, l_wh
     return reduce_saturation(result, 0.8)
 
 def main():
-    filename = "debevec"
+    # filename = "debevec"
+    filename = "robertson"
 
-    img = cv2.imread(f"../data/hdr/{filename}.hdr", cv2.IMREAD_UNCHANGED)
     hdr_img = load_hdr(filename)
     toned_img = ReinhardLuminanceTonemap(hdr_img, alpha=0.45, l_white=30)
-    # toned_img = ReinhardEachColorTonemap(hdr_img, alpha=0.45, l_white=30)
-    # toned_img = MinMaxTonemap(hdr_img)
+    cv2.imwrite(f"../data/output/{filename}-ReinhardGray.JPG", toned_img)
+    toned_img = ReinhardEachColorTonemap(hdr_img, alpha=0.45, l_white=30)
+    cv2.imwrite(f"../data/output/{filename}-ReinhardSplit.JPG", toned_img)
+    toned_img = MinMaxTonemap(hdr_img)
+    cv2.imwrite(f"../data/output/{filename}-MinMax.JPG", toned_img)
     # show_img(toned_img)
-    cv2.imwrite(f"../output/{filename}-ReinhardGray.JPG", toned_img)
     exit()
 
 

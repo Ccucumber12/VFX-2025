@@ -80,7 +80,7 @@ def solve_Debevec_g(Z, B, l=10):
     return g
 
 def solve_Robertson_g(images, exposure_times):
-    iterate_times = 3
+    iterate_times = 2
     n, h, w, c = images.shape
     g_curves = []
     E = np.zeros((h, w, c)).astype(np.float32)
@@ -181,13 +181,13 @@ def debevec_hdr(images, exposure_times):
             g_curves.append(g)
             print("After solving g for channel ", channel)
         save_curves_image(g_curves, "debevec")
-        np.save(G_CURVES_SAVE, g_curves)
+        # np.save(G_CURVES_SAVE, g_curves)
 
     hdr = construct_hdr_radiance_map(images, log_exposure_times, g_curves)
     print("After constructing radiance map, hdr shape: ", hdr.shape)
     save_hdr_image(hdr, "debevec")
     print("After saving hdr")
-    tone_mapping(hdr, "debevec")
+    # tone_mapping(hdr, "debevec")
 
 def robertson_hdr(images, exposure_times):
     print("Robertson's method:")
@@ -198,14 +198,14 @@ def robertson_hdr(images, exposure_times):
     print("After constructing radiance map, hdr shape: ", hdr.shape)
     save_hdr_image(hdr, "robertson")
     print("After saving hdr")
-    tone_mapping(hdr, "robertson")
+    # tone_mapping(hdr, "robertson")
 
 
 def main():
     images, exposure_times = load_images(ldr_path)
     print("After loading images, images.shape: ", images.shape)
-    debevec_hdr(images, exposure_times)
-    # robertson_hdr(images, exposure_times)
+    # debevec_hdr(images, exposure_times)
+    robertson_hdr(images, exposure_times)
 
     return
 

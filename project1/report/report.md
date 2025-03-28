@@ -12,12 +12,13 @@ This project involves assembling an HDR image from a series of photographs taken
 1. Image alignment (Bonus)
 
 2. HDR construction
-
    - Debevec's method
-
    - Robertson's method (Bonus)
 
 3. Tone mapping (Bonus)
+   - Log Min-max Scaling
+   - Reinhard Method with Grayscale Image
+   - Reinhard Method with Grayscale Image
 
 ## 3. Image alignment
 
@@ -74,7 +75,9 @@ We implemented two ways to compute responsive curves:
 
 Reference: http://www.csie.ntu.edu.tw/~cyy/courses/vfx/papers/Debevec1997RHD.pdf
 
-According to this paper, we wanted to minimize $$O = \sum\limits_{i = 1}^{N}\sum\limits_{j = 1}^{P} \{w(Z_{ij})[g(Z_{ij}) - \ln{E_i} - \ln{\Delta t_j}]\}^2 + \lambda \sum\limits_{z = Z_{min} + 1}^{Z_{max} - 1} [w(z)g''(z)]^2$$.
+According to this paper, we wanted to minimize
+
+$$O = \sum\limits_{i = 1}^{N}\sum\limits_{j = 1}^{P} \{w(Z_{ij})[g(Z_{ij}) - \ln{E_i} - \ln{\Delta t_j}]\}^2 + \lambda \sum\limits_{z = Z_{min} + 1}^{Z_{max} - 1} [w(z)g''(z)]^2.$$
 
 We first selected sample pixels and obtained $g$ curves for each color channel independently by transforming the objective function into a least-squares problem and solving it.
 
@@ -113,11 +116,11 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
 <table>
 <tr>
 <td style="width: 50%; vertical-align: top;">
-  We first implemented the simple Min-Max normalization. 
+  We first implemented the simple Min-Max normalization.
 
   We converted the values of each channel to log space and simply scale it using
   min-max scaling. We use PR1 and PR99 of the values as the lower bound ($lb$) and 
-  upper bound ($ub$) to counter outliers. 
+  upper bound ($ub$) to counter outliers.
 
   $$
     L_\text{out} = \frac{L_\text{in} - lb}{ub - lb}
@@ -128,7 +131,7 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
   window).
 </td>
 <td style="width: 50%; text-align: center;">
-  <img src="../output/debevec-MinMax.JPG" alt="minmax" width="300"/>
+  <img src="../data/output/debevec-MinMax-10.JPG" alt="minmax" width="300"/>
 </td>
 </tr>
 </table>
@@ -141,12 +144,14 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
   Next, we implemented the Reinhard tonemapping method.
 
   For each channel, we first compute the log-average luminance:
+
   $$
     L_\text{avg} = \exp\left(\log(\delta + L_\text{in})\right)
   $$
   where $\delta$ is set to $10^{-5}$ to avoid logarithm singularities.
 
   Next, we normalize the input luminance based on this value:
+
   $$
     L_\text{m} = L_\text{in} \cdot \frac{\alpha}{L_\text{avg}}
   $$
@@ -154,6 +159,7 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
 
   Finally, we apply the Reinhard remapping function to compress the luminance 
   into the $[0, 1]$ range. 
+
   $$
     L_\text{out} = \frac{L_\text{m}}{1 + L_\text{m}} \cdot \frac{1 + L_\text{m}}{L_\text{white}^2}
   $$
@@ -167,12 +173,12 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
   image a subtle vintage aesthetic.
 </td>
 <td style="width: 50%; text-align: center;">
-  <img src="../output/debevec-ReinhardSplit.JPG" alt="ReinhardSplit" width="300"/>
+  <img src="../data/output/debevec-ReinhardSplit-10.JPG" alt="ReinhardSplit" width="300"/>
 </td>
 </tr>
 </table>
 
-### Reinhard Method with Split Channel
+### Reinhard Method with Grayscale Image
 
 <table>
 <tr>
@@ -184,6 +190,7 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
   First, we convert the image to grayscale to extract the global luminance and 
   apply the same tone mapping function to scale it into the $[0,1]$ range. We 
   then use this mapped luminance to adjust the color channels proportionally:
+  
   $$
     C_\text{out} = C_\text{in} \cdot \frac{L_\text{out}}{L_\text{in}}
   $$
@@ -197,9 +204,9 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
   Compared to the previous methods, this approach not only preserves details in 
   both bright and dark regions but also maintains a more natural color balance. 
   As a result, this became our preferred tone-mapping method.
- </td>
+</td>
 <td style="width: 50%; text-align: center;">
-  <img src="../output/debevec-ReinhardGray.JPG" alt="ReinhardGray" width="300"/>
+  <img src="../data/output/debevec-ReinhardGray-10.JPG" alt="ReinhardGray" width="300"/>
 </td>
 </tr>
 </table>
@@ -209,14 +216,168 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
 
 ### Original images
 
-- Folder: `/data/cosmology-hall`
+- Folder: `./data/cosmology-hall/`
 
-| 1/256![148A8373](../data/ldr/cosmology-hall/148A8373.JPG)   | 1/128![148A8374](../data/ldr/cosmology-hall/148A8374.JPG)   | 1/64![148A8376](../data/ldr/cosmology-hall/148A8376.JPG)    | 1/32![148A8380](../data/ldr/cosmology-hall/148A8380.JPG)  | 1/16![148A8382](../data/ldr/cosmology-hall/148A8382.JPG)  |
-| ----------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------- |
-| **1/8**![148A8384](../data/ldr/cosmology-hall/148A8384.JPG) | **1/4**![148A8386](../data/ldr/cosmology-hall/148A8386.JPG) | **1/2**![148A8388](../data/ldr/cosmology-hall/148A8388.JPG) | **1**![148A8389](../data/ldr/cosmology-hall/148A8389.JPG) | **2**![148A8391](../data/ldr/cosmology-hall/148A8391.JPG) |
+<table style="text-align: center;">
+<tr>
+<td style="width: 20%;">
+1/256
+<img src="../data/ldr/cosmology-hall/148A8373.JPG">
+</td>
+<td style="width: 20%;">
+1/128
+<img src="../data/ldr/cosmology-hall/148A8374.JPG">
+</td>
+<td style="width: 20%;">
+1/64
+<img src="../data/ldr/cosmology-hall/148A8376.JPG">
+</td>
+<td style="width: 20%;">
+1/32
+<img src="../data/ldr/cosmology-hall/148A8380.JPG">
+</td>
+<td style="width: 20%;">
+1/16
+<img src="../data/ldr/cosmology-hall/148A8382.JPG">
+</td>
+</tr>
+<tr>
+<td>1/8<img src="../data/ldr/cosmology-hall/148A8384.JPG"></td>
+<td>1/4<img src="../data/ldr/cosmology-hall/148A8386.JPG"></td>
+<td>1/2<img src="../data/ldr/cosmology-hall/148A8388.JPG"></td>
+<td>1/4<img src="../data/ldr/cosmology-hall/148A8389.JPG"></td>
+<td>1/2<img src="../data/ldr/cosmology-hall/148A8391.JPG"></td>
+</tr>
+</table>
 
 ### Result
+#### Debevec's method
+g curves with different $\lambda$:
+<table>
+<tr>
+<td style="width: 33%; text-align: center;">
 
-- Folder:
+$\lambda$ = 3
+</td>
+<td style="width: 33%; text-align: center;">
 
-## 7. Usage
+$\lambda$ = 5
+</td>
+<td style="width: 33%; text-align: center;">
+
+$\lambda$ = 10
+</td>
+</tr>
+<tr>
+<td><img src="./debevec_curves_1_3.jpg"></td>
+<td><img src="./debevec_curves_1_5.jpg"></td>
+<td><img src="./debevec_curves_1_10.jpg"></td>
+</tr>
+</table>
+
+Tone mapping images
+- Used algorithm: Reinhard Method with Grayscale Image
+<table>
+<tr>
+<td style="width: 33%; text-align: center;">
+
+$\lambda$ = 3
+</td>
+<td style="width: 33%; text-align: center;">
+
+$\lambda$ = 5
+</td>
+<td style="width: 33%; text-align: center;">
+
+$\lambda$ = 10
+</td>
+</tr>
+<tr>
+<td><img src="../data/output/debevec-ReinhardGray-3.JPG"></td>
+<td><img src="../data/output/debevec-ReinhardGray-5.JPG"></td>
+<td><img src="../data/output/debevec-ReinhardGray-10.JPG"></td>
+</tr>
+</table>
+
+#### Robertson's method
+g curves with different iteration:
+<table>
+<tr>
+<td style="width: 33%; text-align: center;">
+iteration = 3
+</td>
+<td style="width: 33%; text-align: center;">
+iteration = 4
+</td>
+<td style="width: 33%; text-align: center;">
+iteration = 5
+</td>
+</tr>
+<tr>
+<td><img src="./robertson_curves_1_3.jpg"></td>
+<td><img src="./robertson_curves_1_4.jpg"></td>
+<td><img src="./robertson_curves_1_5.jpg"></td>
+</tr>
+</table>
+
+Tone mapping images
+- Used algorithm: Reinhard Method with Grayscale Image
+<table>
+<tr>
+<td style="width: 33%; text-align: center;">
+iteration = 3
+</td>
+<td style="width: 33%; text-align: center;">
+iteration = 4
+</td>
+<td style="width: 33%; text-align: center;">
+iteration = 5
+</td>
+</tr>
+<tr>
+<td><img src="../data/output/robertson-ReinhardGray-3.JPG"></td>
+<td><img src="../data/output/robertson-ReinhardGray-4.JPG"></td>
+<td><img src="../data/output/robertson-ReinhardGray-5.JPG"></td>
+</tr>
+</table>
+
+#### Different tone mapping algorithm
+- Debevec's method ($\lambda$ = 10)
+<table>
+<tr>
+<td style="width: 33%; text-align: center;">
+Log Min-max Scaling
+</td>
+<td style="width: 33%; text-align: center;">
+Reinhard Method with Split Channel
+</td>
+<td style="width: 33%; text-align: center;">
+Reinhard Method with Grayscale Image
+</td>
+</tr>
+<tr>
+<td><img src="../data/output/debevec-MinMax-10.JPG"></td>
+<td><img src="../data/output/debevec-ReinhardSplit-10.JPG"></td>
+<td><img src="../data/output/debevec-ReinhardGray-10.JPG"></td>
+</tr>
+</table>
+
+- Robertson's method (iteration = 5)
+<table>
+<tr>
+<td style="width: 33%; text-align: center;">
+Log Min-max Scaling
+</td>
+<td style="width: 33%; text-align: center;">
+Reinhard Method with Split Channel
+</td>
+<td style="width: 33%; text-align: center;">
+Reinhard Method with Grayscale Image
+</td>
+</tr>
+<tr>
+<td><img src="../data/output/robertson-MinMax-5.JPG"></td>
+<td><img src="../data/output/robertson-ReinhardSplit-5.JPG"></td>
+<td><img src="../data/output/robertson-ReinhardGray-5.JPG"></td>
+</tr>
+</table>

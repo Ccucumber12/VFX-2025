@@ -104,7 +104,7 @@ def solve_Robertson_g(images, exposure_times):
             for m in range(256):
                 index = np.where(img_channel == m)
                 size = index[0].size
-                numerator = np.sum(E[index[1][s]][index[2][s]][channel] * exposure_times[index[0][s]] for s in range(size))
+                numerator = np.sum([E[index[1][s]][index[2][s]][channel] * exposure_times[index[0][s]] for s in range(size)])
                 denominator = size
                 g_curves[channel][m] = numerator / denominator
             g_curves[channel] /= g_curves[channel][127]
@@ -153,8 +153,7 @@ def save_hdr_image(hdr_image, method):
 
 def tone_mapping(hdr_image, method):
     tonemapDrago = cv2.createTonemapDrago(2.0, 0.75)
-    ldrDrago = tonemapDrago.process(hdr_image.astype(np.float32)) * 255
-    ldrDrago = np.clip(ldrDrago * 3, 0.0, 255.0)
+    ldrDrago = tonemapDrago.process(hdr_image) * 255
     cv2.imwrite(os.path.join(ldr_path, f"{method}_tonemap_drago.jpg"), ldrDrago.astype(np.uint8))
 
     tonemapReinhard = cv2.createTonemapReinhard(2.2, 0, 0, 0)
@@ -163,7 +162,6 @@ def tone_mapping(hdr_image, method):
 
     tonemapMantiuk = cv2.createTonemapMantiuk(2.2, 0.85, 1.2)
     ldrMantiuk = tonemapMantiuk.process(hdr_image) * 255
-    ldrMantiuk = np.clip(ldrMantiuk * 3, 0.0, 255.0)
     cv2.imwrite(os.path.join(ldr_path, f"{method}_tonemap_mantiuk.jpg"), ldrMantiuk.astype(np.uint8))
 
 def debevec_hdr(images, exposure_times):

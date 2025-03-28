@@ -1,4 +1,4 @@
-# project #1: High Dynamic Range Imaging
+# Project 1: High Dynamic Range Imaging
 
 - B10902064 張晴昀
 - B10902067 黃允謙
@@ -9,15 +9,15 @@ This project involves assembling an HDR image from a series of photographs taken
 
 ## 2. Processing flow
 
-1. Image alignment
+1. Image alignment (Bonus)
 
 2. HDR construction
 
    - Debevec's method
 
-   - Robertson's method
+   - Robertson's method (Bonus)
 
-3. Tone mapping
+3. Tone mapping (Bonus)
 
 ## 3. Image alignment
 
@@ -67,7 +67,16 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
 
 
 
-## 6. Result
+## 6. Comparison
 
-### Camera Setting
+### Original images
 
+- Folder: `/data/cosmology-hall`
+
+| 1/256![148A8373](../data/ldr/cosmology-hall/148A8373.JPG)   | 1/128![148A8374](../data/ldr/cosmology-hall/148A8374.JPG)   | 1/64![148A8376](../data/ldr/cosmology-hall/148A8376.JPG)    | 1/32![148A8380](../data/ldr/cosmology-hall/148A8380.JPG)  | 1/16![148A8382](../data/ldr/cosmology-hall/148A8382.JPG)  |
+| ----------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------- | --------------------------------------------------------- |
+| **1/8**![148A8384](../data/ldr/cosmology-hall/148A8384.JPG) | **1/4**![148A8386](../data/ldr/cosmology-hall/148A8386.JPG) | **1/2**![148A8388](../data/ldr/cosmology-hall/148A8388.JPG) | **1**![148A8389](../data/ldr/cosmology-hall/148A8389.JPG) | **2**![148A8391](../data/ldr/cosmology-hall/148A8391.JPG) |
+
+### Result
+
+- Folder:

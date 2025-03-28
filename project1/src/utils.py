@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-def show_single_channel(img, colormap = cv2.COLORMAP_TURBO):
+def show_single_channel(img, colormap = cv2.COLORMAP_BONE):
     img = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
     img = cv2.applyColorMap(img, colormap)
     cv2.imshow("Image", img)

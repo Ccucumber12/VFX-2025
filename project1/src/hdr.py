@@ -4,6 +4,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 from utils import *
+from align import MtbAlign
 
 Z_min = 0
 Z_max = 255
@@ -19,6 +20,8 @@ def load_images(dir_path):
             image_name, exposure_time = line.strip().split()
             images.append(cv2.imread(os.path.join(dir_path, image_name)))
             exposure_times.append(eval(exposure_time))
+    
+    images = MtbAlign(images)
     return np.array(images), np.array(exposure_times, dtype=np.float32)
     
 def sample_pixels(images):
@@ -198,7 +201,7 @@ def main():
     images, exposure_times = load_images(ldr_path)
     print("After loading images, images.shape: ", images.shape)
     debevec_hdr(images, exposure_times)
-    robertson_hdr(images, exposure_times)
+    # robertson_hdr(images, exposure_times)
 
     return
 

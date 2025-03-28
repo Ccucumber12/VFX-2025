@@ -87,7 +87,14 @@ def ReinhardEachColorTonemap(irradiance: NDArray[np.float32], alpha = 0.18, l_wh
         l_m = l_in * alpha / l_avg
         l_out = l_m / (1 + l_m) * (1 + l_m / (l_white ** 2))
         result[:,:,i] = l_out
-    return result
+    return (result * 255).clip(0, 255).astype(np.uint8)
+
+
+def reduce_saturation(image: NDArray, factor = 0.8) -> NDArray:
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)
+    hsv[:, :, 1] *= factor
+    hsv[:, :, 1] = np.clip(hsv[:, :, 1], 0, 255)
+    return cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
 def ReinhardLuminanceTonemap(irradiance: NDArray[np.float32], alpha = 0.18, l_white = 100) -> NDArray[np.float32]:
     l_in = 0.2126 * irradiance[:, :, 2] + 0.7152 * irradiance[:, :, 1] + 0.0722 * irradiance[:, :, 0]
@@ -95,18 +102,20 @@ def ReinhardLuminanceTonemap(irradiance: NDArray[np.float32], alpha = 0.18, l_wh
     l_m = l_in * alpha / l_avg
     l_out = l_m / (1 + l_m) * (1 + l_m / (l_white ** 2))
     result = irradiance * (l_out[..., np.newaxis] / (l_in[..., np.newaxis] + 1e-5))
-    return result
+
+    result = (result * 255).clip(0, 255).astype(np.uint8)
+    return reduce_saturation(result, 0.8)
 
 def main():
     filename = "debevec"
 
     img = cv2.imread(f"../data/hdr/{filename}.hdr", cv2.IMREAD_UNCHANGED)
     hdr_img = load_hdr(filename)
-    # toned_img = ReinhardLuminanceTonemap(hdr_img, alpha=0.35, l_white=20)
-    toned_img = ReinhardEachColorTonemap(hdr_img, alpha=0.45, l_white=30)
+    toned_img = ReinhardLuminanceTonemap(hdr_img, alpha=0.45, l_white=30)
+    # toned_img = ReinhardEachColorTonemap(hdr_img, alpha=0.45, l_white=30)
     # toned_img = MinMaxTonemap(hdr_img)
-    show_img(toned_img)
-    # cv2.imwrite(f"../output/{filename}.JPG", toned_img)
+    # show_img(toned_img)
+    cv2.imwrite(f"../output/{filename}-ReinhardGray.JPG", toned_img)
     exit()
 
 

@@ -21,7 +21,50 @@ This project involves assembling an HDR image from a series of photographs taken
 
 ## 3. Image alignment
 
+We implemented a brute-force version of the Medium Threshold Bitmap (MTB) algorithm 
+for image alignment.
 
+The process begins by converting each input image to grayscale and determining 
+its median intensity value. This median serves as a threshold to create a binary 
+bitmap, where pixels above the threshold are set to $1$, and those below are set 
+to $0$.
+
+To align the images, we select the one with the middle exposure as the reference 
+and shift the remaining images to minimize their differences with the reference image.
+
+To reduce threshold noise, we also added the mask that excludes pixels with 
+grayscale values near the threshold. Specifically, we ignore pixels within the range:
+
+$$ \mathrm{threshold} \pm 2 $$
+
+This approach yields the best results when working with 8-bit grayscale images.
+
+Since we employ a brute-force search for the best alignment, we limit the maximum 
+shift to 10 pixels. However, given that the images were captured using a tripod, 
+only minor shifts were necessary, and a maximum shift of 10 proved to be more 
+than sufficient.
+
+Below are the computed shifts for each image:
+```
+best shift for image 0: dx = 1, dy = -1
+best shift for image 1: dx = 0, dy = 1
+best shift for image 2: dx = 1, dy = 0
+best shift for image 3: dx = 1, dy = 0
+best shift for image 4: dx = 0, dy = 0
+best shift for image 5: dx = 0, dy = 0
+best shift for image 6: dx = 0, dy = 0
+best shift for image 7: dx = 0, dy = 0
+best shift for image 8: dx = 0, dy = 0
+best shift for image 9: dx = 0, dy = 0
+```
+
+Regarding implementation details, when shifting images, we fill in the blank 
+areas using nearby pixels as a reasonable approximation. However, this filling 
+is only applied during the difference calculation and does not affect the final 
+aligned images. Once the optimal shifts are determined, we crop the images to 
+remove any artificially introduced pixels. Given that the maximum shift is limited 
+to 10 pixels, the cropping ensures that at most 10 pixels are removed from each 
+side of the image.
 
 ## 4. HDR construction
 
@@ -65,6 +108,101 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
 
 ## 5. Tone mapping
 
+### Log Min-max Scaling
+
+<table>
+<tr>
+<td style="width: 50%; vertical-align: top;">
+  We first implemented the simple Min-Max normalization. 
+
+  We converted the values of each channel to log space and simply scale it using
+  min-max scaling. We use PR1 and PR99 of the values as the lower bound ($lb$) and 
+  upper bound ($ub$) to counter outliers. 
+
+  $$
+    L_\text{out} = \frac{L_\text{in} - lb}{ub - lb}
+  $$
+
+  This simple approach is surprisingly already good enough for us to see the 
+  details of both the dark side (the statue) and the bright side (outside of the 
+  window).
+</td>
+<td style="width: 50%; text-align: center;">
+  <img src="../output/debevec-MinMax.JPG" alt="minmax" width="300"/>
+</td>
+</tr>
+</table>
+
+### Reinhard Method with Split Channel
+
+<table>
+<tr>
+<td style="width: 50%; vertical-align: top;">
+  Next, we implemented the Reinhard tonemapping method.
+
+  For each channel, we first compute the log-average luminance:
+  $$
+    L_\text{avg} = \exp\left(\log(\delta + L_\text{in})\right)
+  $$
+  where $\delta$ is set to $10^{-5}$ to avoid logarithm singularities.
+
+  Next, we normalize the input luminance based on this value:
+  $$
+    L_\text{m} = L_\text{in} \cdot \frac{\alpha}{L_\text{avg}}
+  $$
+  Here, $\alpha$ is a brightness scaling parameter, which we set to $0.45$.
+
+  Finally, we apply the Reinhard remapping function to compress the luminance 
+  into the $[0, 1]$ range. 
+  $$
+    L_\text{out} = \frac{L_\text{m}}{1 + L_\text{m}} \cdot \frac{1 + L_\text{m}}{L_\text{white}^2}
+  $$
+  where $L_\text{white}$ controls the maximum distinguishable luminance. Since 
+  our scene does not contain extremely bright light sources, we set 
+  $L_\text{white} = 30$, effectively disabling this feature.
+
+  In the tone-mapped image, we observe that both bright and dark regions retain 
+  visible details. However, compared to the previous method, this approach 
+  introduces a yellowish tint, producing a warmer color tone. This effect gives the 
+  image a subtle vintage aesthetic.
+</td>
+<td style="width: 50%; text-align: center;">
+  <img src="../output/debevec-ReinhardSplit.JPG" alt="ReinhardSplit" width="300"/>
+</td>
+</tr>
+</table>
+
+### Reinhard Method with Split Channel
+
+<table>
+<tr>
+<td style="width: 50%; vertical-align: top;">
+  We then realized that the Reinhard method should be applied to the luminance of 
+  the entire image, rather than processing each channel separately. To address 
+  this, we implemented an improved version.
+
+  First, we convert the image to grayscale to extract the global luminance and 
+  apply the same tone mapping function to scale it into the $[0,1]$ range. We 
+  then use this mapped luminance to adjust the color channels proportionally:
+  $$
+    C_\text{out} = C_\text{in} \cdot \frac{L_\text{out}}{L_\text{in}}
+  $$
+  where $C_\text{in}$ represents the original color channel values, and 
+  $C_\text{out}$is the adjusted output.
+
+  We observed that this approach tends to increase saturation, making the image 
+  appear overly vivid. To counter this, we convert the result to HSV color space 
+  and reduce the saturation by a factor of $0.8$.
+
+  Compared to the previous methods, this approach not only preserves details in 
+  both bright and dark regions but also maintains a more natural color balance. 
+  As a result, this became our preferred tone-mapping method.
+ </td>
+<td style="width: 50%; text-align: center;">
+  <img src="../output/debevec-ReinhardGray.JPG" alt="ReinhardGray" width="300"/>
+</td>
+</tr>
+</table>
 
 
 ## 6. Comparison
@@ -80,3 +218,5 @@ We computed $\ln E_i = \frac{\sum_{j = 1}^{P} w(Z_{ij})(g(Z_{ij}) - \ln \Delta t
 ### Result
 
 - Folder:
+
+## 7. Usage

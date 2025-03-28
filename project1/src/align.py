@@ -18,15 +18,16 @@ def shift_and_fill(img: NDArray, dx: int, dy: int) -> NDArray:
         shifted[dy:, :] = shifted[dy-1:dy, :]
     return shifted
 
-def find_best_shift(ref: NDArray, tar: NDArray, mask: NDArray) -> tuple[int, int]:
+def find_best_shift(ref: NDArray, tar: NDArray, ref_mask: NDArray, tar_mask: NDArray) -> tuple[int, int]:
     if ref.shape != tar.shape:
         print("[Error] image shape not matched.")
         raise RuntimeError
     min_diff = ref.shape[0] * ref.shape[1]
     for dx in range(-MAX_SHIFT, MAX_SHIFT+1):
         for dy in range(-MAX_SHIFT, MAX_SHIFT+1):
-            shifted = shift_and_fill(tar, dx, dy)
-            diff = np.sum((shifted != ref) & mask)
+            shifted_tar_bits = shift_and_fill(tar, dx, dy)
+            shifted_tar_mask = shift_and_fill(tar_mask, dx, dy)
+            diff = np.sum((shifted_tar_bits != ref) & (ref_mask & shifted_tar_mask))
             if diff < min_diff:
                 min_diff = diff
                 best_dx, best_dy = dx, dy
@@ -34,7 +35,7 @@ def find_best_shift(ref: NDArray, tar: NDArray, mask: NDArray) -> tuple[int, int
 
 def MtbAlign(images: list[NDArray]) -> list[NDArray]:
     bitmaps = []
-    bitmasks = []
+    masks = []
     n = len(images)
     ref = n // 2
     tolerance = 2
@@ -44,13 +45,13 @@ def MtbAlign(images: list[NDArray]) -> list[NDArray]:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         threshold = np.median(gray)
         bitmaps.append((gray > threshold))
-        bitmasks.append((gray < threshold - tolerance) | (gray > threshold + tolerance))
-
+        masks.append((gray < threshold - tolerance) | (gray > threshold + tolerance))
+    
     shifted = []
     dx_max, dy_max = -MAX_SHIFT, -MAX_SHIFT
     dx_min, dy_min = MAX_SHIFT, MAX_SHIFT
     for i in range(n):
-        best_dx, best_dy = find_best_shift(bitmaps[ref], bitmaps[i], bitmasks[ref] & bitmasks[i])
+        best_dx, best_dy = find_best_shift(bitmaps[ref], bitmaps[i], masks[ref], masks[i])
         print(f"best shift for image {i}: dx = {best_dx}, dy = {best_dy}")
         shifted.append(np.roll(images[i], shift=(best_dx, best_dy), axis=(0, 1)))
 

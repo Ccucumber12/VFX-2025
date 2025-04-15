@@ -1,30 +1,9 @@
 import os
 import cv2
-import numpy as np
-from scipy.ndimage import convolve
-from scipy.spatial import cKDTree
+from scipy.ndimage import convolve, maximum_filter
 from skimage.filters import threshold_otsu
 
 from utils import *
-
-def spatial_suppress(binary_array, space=5):
-    coords = np.argwhere(binary_array)
-    kept = []
-
-    tree = cKDTree(coords)
-    suppressed = np.zeros_like(binary_array, dtype=bool)
-    used = np.zeros(len(coords), dtype=bool)
-
-    for i, pt in enumerate(coords):
-        if used[i]:
-            continue
-        kept.append(pt)
-        nearby = tree.query_ball_point(pt, r=space)
-        used[nearby] = True
-
-    for x, y in kept:
-        suppressed[x, y] = True
-    return suppressed
 
 
 def get_sxy_from_patch_size(patch_size):
@@ -44,46 +23,30 @@ def get_minE(intensity, patch_size = 3):
     return minE
 
 
-def moravec(intensity, thresh = None, min_distance = 5, patch_size = 3):
+def moravec(intensity, patch_size = 3, thresh = None, min_distance = 10):
     '''
     Returns the coordinates of detected features.
 
     Param:
         intensity: A single channel image that stores intensity information.
-        thresh: threshold for E (default using otsu's method to find one).
+        patch_size: window size
+        thresh: threshold for E (default using Otsu's method to find one).
         min_distance: minimum distance between two feature points.
-        patch_size:
     '''
     minE = get_minE(intensity, patch_size)
+    mask = (minE == maximum_filter(minE, min_distance * 2))
+    minE = normalize_to_uint8(minE)
 
-    if thresh == None:
+    if thresh:
+        print(f"Given threshold = {thresh}")
+    else:
         thresh = threshold_otsu(minE)
         print(f"Otsu threshold = {thresh}")
-    else:
-        print(f"Given threshold = {thresh}")
 
-    isFeature = minE > thresh
-    coords = np.argwhere(isFeature)
-    if len(coords) == 0:
-        return []
-
-    scores = minE[isFeature]
-    sorted_indices = np.argsort(-scores)
-    coords = coords[sorted_indices]
-
-    tree = cKDTree(coords)
-    selected = []
-    suppressed = np.zeros(len(coords), dtype=bool)
-
-    for i, pt in enumerate(coords):
-        if suppressed[i]:
-            continue
-        selected.append(tuple(pt))
-        nearby = tree.query_ball_point(pt, r=min_distance)
-        suppressed[nearby] = True
-
+    is_feature = (minE > thresh) & mask
+    coords = np.argwhere(is_feature)
     sx, sy = get_sxy_from_patch_size(patch_size)
-    return [(int(sx + x), int(sy + y)) for x, y in selected]
+    return [(int(sx + x), int(sy + y)) for x, y in coords]
     
 
 def interactive_moravec(intensity, image, patch_size = 3):
@@ -93,6 +56,7 @@ def interactive_moravec(intensity, image, patch_size = 3):
     '''
     sx, sy = get_sxy_from_patch_size(patch_size)
     minE = get_minE(intensity, patch_size)
+    minE = normalize_to_uint8(minE)
 
     thresh = threshold_otsu(minE)
     print(f"Otsu threshold = {thresh}")
@@ -123,16 +87,15 @@ if __name__ == "__main__":
     img_path = os.path.join(IMG_DIR, IMG_NAME)
 
     image = cv2.imread(img_path)
-    image = scale_image(image, 0.5)
+    image = scale_image(image, 1440 / image.shape[1])
 
     I = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.int32)
 
     interactive_moravec(I, image)
 
-    # feature_points = moravec(I, min_distance=10)
+    # feature_points = moravec(I)
     # for x, y in feature_points:
     #     cv2.circle(image, (y, x), radius=3, color=(0, 0, 255), thickness=-1)
     # cv2.imshow("Features", image)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-       

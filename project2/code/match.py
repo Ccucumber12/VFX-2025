@@ -1,79 +1,144 @@
 import os
 import cv2
+from numpy.typing import NDArray
+from sklearn.neighbors import BallTree
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from utils import *
-from harris import *
+from harris import harris
 
-def get_descriptor(image, x, y):
+
+def get_descriptor(mat: NDArray, x: int, y: int) -> NDArray:
     l = 5
     hl = l // 2
-    patch = np.zeros((l, l, 3), dtype=image.dtype)
+    if len(mat.shape) == 3:
+        patch = np.zeros((l, l, 3), dtype=mat.dtype)
+    else:
+        patch = np.zeros((l, l), dtype=mat.dtype)
 
     for dx in range(-hl, hl + 1):
         for dy in range(-hl, hl + 1):
             xi, yi = x + dx, y + dy
-            if 0 <= xi < image.shape[0] and 0 <= yi < image.shape[1]:
-                patch[dx + hl, dy + hl] = image[xi, yi]
+            if 0 <= xi < mat.shape[0] and 0 <= yi < mat.shape[1]:
+                patch[dx + hl, dy + hl] = mat[xi, yi]
 
-    return patch
+    patch = patch.flatten()
+    return patch.astype(np.uint32)
 
 
-if __name__ == "__main__":
-    IMG_DIR = "../data/feature-detection"
-    IMG1_NAME = "rome1.jpg"
-    IMG2_NAME = "rome2.jpg"
+def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh = 0.8) -> list[tuple[tuple[int,int], tuple[int,int]]]:
+    '''
+    Find feature points on `src_img` and match them with points on `dst_img`. 
+    Returns a list of matches, each match consists of an xy coordinate from 
+    `src_img` and another on `dst_img`.
 
-    img1_path = os.path.join(IMG_DIR, IMG1_NAME)
-    img2_path = os.path.join(IMG_DIR, IMG2_NAME)
+    Param:
+        `src_img`: find feature on this image, assume on the left.
+        `dst_img`: match feature on this image, assume on the right.
+        `overlap`: ratio of overlap part, should be a value in (0, 1].
+        `unique_thresh`: a match is good if `min_diff / second_min_diff` is 
+        smaller then this value, should be a value in (0, 1].
+    '''
+    if not 0 < overlap <= 1:
+        print(f"[Error] overlap range not in (0, 1], value = {overlap}")
+        raise ValueError
 
-    image1 = cv2.imread(img1_path)
-    image1 = scale_hd(image1)
+    start_idx = int(src_img.shape[1] * (1 - overlap))
+    src_I = bgr_to_grayscale(src_img)
 
-    image2 = cv2.imread(img2_path)
-    image2 = scale_hd(image2)
+    feats = harris(src_I[:,start_idx:], max_n = 1000) # only overlap part
+    feats = [(x, y+start_idx) for x, y in feats]
+    print(f"Fetched features! n = {len(feats)}")
+
+    show_image(draw_circles(src_img, feats))
+
+    dst_n, dst_m = dst_img.shape[:2]
+    dst_xys = [(x, y) for x in range(dst_n) for y in range(int(dst_m * overlap))]
+
+    print(f"Building destination descriptor Ball-tree...")
+    dst_des = [get_descriptor(dst_img, x, y) for x, y in dst_xys]
+    dst_tree = BallTree(dst_des)
+    print(f"Ball-tree Successfully built!")
     
-    I1 = bgr_to_grayscale(image1)
-    I2 = bgr_to_grayscale(image2)
+    matches = []
+    for sx, sy in tqdm(feats):
+        src_des = get_descriptor(src_img, sx, sy)
 
-    f1 = harris(I1, max_n = 1000, thresh=37)
-    f2 = harris(I2, max_n = 1000, thresh=37)
+        diffs, indices = dst_tree.query([src_des], k=2)
 
-    t_image1 = image1.copy()
-    t_image2 = image2.copy()
-    for x, y in f1:
-        cv2.circle(t_image1, (y, x), radius=3, color=(0, 0, 255), thickness=-1)
-    for x, y in f2:
-        cv2.circle(t_image2, (y, x), radius=3, color=(0, 0, 255), thickness=-1)
-    show_image(cv2.hconcat([t_image1, t_image2]))
+        diffs = diffs[0]
+        indices = indices[0]
 
-    np.set_printoptions(precision=1, suppress=True, floatmode='fixed')
-
-    def get_diff(v1, v2):
-        return np.sum((v1 - v2)**2)
-    
-    for tx, ty in f1:
-        t_des = get_descriptor(image1, tx, ty)
-
-        matched_idx = np.argmin([get_diff(t_des, get_descriptor(image2, x, y)) for x, y in f2])
-        mx, my = f2[matched_idx]
-
-
-        m_des = get_descriptor(image2, mx, my)
-        min_diff = get_diff(t_des, m_des)
-        if min_diff >= 3000:
+        diff_ratio = round(diffs[0] / diffs[1], 3)
+        if diff_ratio >= unique_thresh:
             continue
 
-        t_image1 = image1.copy()
-        t_image2 = image2.copy()
-        cv2.circle(t_image1, (ty, tx), radius=3, color=(0, 0, 255), thickness=-1)
-        cv2.circle(t_image2, (my, mx), radius=3, color=(0, 0, 255), thickness=-1)
-        show_image(cv2.hconcat([t_image1, t_image2]))
+        ret_idx = indices[0]
+        ret_x, ret_y = dst_xys[ret_idx]
+        matches.append(((sx, sy), (ret_x, ret_y)))
 
-        def scale_up(mat, l):
-            return cv2.resize(mat, (l, l), interpolation=cv2.INTER_NEAREST)
+        # show_image(concat_images([draw_circles(src_img, (sx, sy), radius=5), 
+        #                           draw_circles(dst_img, (ret_x, ret_y), radius=5)]))
 
-        # t_des = scale_up(t_des, 250)
-        # m_des = scale_up(m_des, 250)
-        # show_image(cv2.hconcat([t_des, m_des]))
+        # def patch_from_des(des):
+        #     des = des.copy()
+        #     des = des.reshape(5, 5, 3)
+        #     return des.astype(np.uint8)
+
+        # ret_des = dst_des[ret_idx]
+        # show_image(concat_images([scale_image(patch_from_des(src_des), 40, cv2.INTER_NEAREST),
+        #                           scale_image(patch_from_des(ret_des), 40, cv2.INTER_NEAREST)]))
+
+    print(f"Match finished! Found n = {len(matches)} matches.")
+    return matches
 
 
+def draw_matches(src_img: NDArray, dst_img: NDArray, matches: list[tuple[tuple[int,int], tuple[int,int]]]):
+    pad = 10
+    canvas = concat_images([src_img, dst_img], spacing=pad)
+    trans_dst = lambda x, y : (x, y + src_img.shape[1] + pad)
+
+    for (sx, sy), (dx, dy) in matches:
+        dx, dy = trans_dst(dx, dy)
+        color = random_color()
+        cv2.circle(canvas, (sy, sx), 4, color, -1)
+        cv2.circle(canvas, (dy, dx), 4, color, -1)
+        cv2.line(canvas, (sy, sx), (dy, dx), color, 1)
+
+    show_image(canvas)
+    cv2.imwrite(f"../output/{src_name[:-4]}-matched.jpg", canvas)
+
+
+def draw_match_vectors(n, m, matches):
+    size = 128
+    vectors = np.array([np.array([0.5+(x2-x1)/n, (y1-y2)/m]) for (x1, y1), (x2, y2) in matches])
+    vectors = (vectors * size).astype(np.uint8)
+
+    cnt = np.zeros((size, size))
+    for x, y in vectors:
+        cnt[x, y] += 1
+
+    plt.imshow(cnt, cmap='hot', interpolation='gaussian')
+    plt.colorbar()
+    plt.xticks(ticks=[0, size/2, size], labels=[0, int(m/2), m])
+    plt.yticks(ticks=[0, size/2, size], labels=[int(-n/2), 0, int(n/2)])
+    plt.savefig("../output/match_vector_heatmap.png", dpi=300)
+    img = cv2.imread("../output/match_vector_heatmap.png")
+    show_image(img)
+    
+
+if __name__ == "__main__":
+    IMG_DIR = "../data/cks-hall"
+    src_name = "148A8737.JPG"
+    dst_name = "148A8739.JPG"
+
+    src_path = os.path.join(IMG_DIR, src_name)
+    dst_path = os.path.join(IMG_DIR, dst_name)
+
+    src_img = scale_hd(cv2.imread(src_path))
+    dst_img = scale_hd(cv2.imread(dst_path))
+
+    matches = match(src_img, dst_img, 0.5)
+    draw_matches(src_img, dst_img, matches)
+    draw_match_vectors(*src_img.shape[:2], matches)

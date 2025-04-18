@@ -31,7 +31,7 @@ def get_threshold(R):
     for r in np.nditer(R):
         counter[r] += 1
     thresh = np.argmax(counter)
-    print(f"My threshold: {thresh}")
+    print(f"Auto harris threshold: {thresh}")
     return np.argmax(counter)
 
 
@@ -84,7 +84,7 @@ def interactive_harris(intensity, image, sigma = 1.0, k = 0.04):
         for x in range(R.shape[0]):
             for y in range(R.shape[1]):
                 if R[x, y] > val:
-                    cv2.circle(marked_image, (1 + y, 1 + x), radius=3, color=(0, 0, 255), thickness=-1)
+                    cv2.circle(marked_image, (y, x), radius=3, color=(0, 0, 255), thickness=-1)
         cv2.imshow("Features", marked_image)
 
     cv2.createTrackbar("Threshold", "Features", int(thresh), int(R.max()), redraw_features)
@@ -101,13 +101,10 @@ if __name__ == "__main__":
     IMG_NAME = "rome1.jpg"
     img_path = os.path.join(IMG_DIR, IMG_NAME)
 
-    # img_path = "../data/feature-matching/prtn00.jpg"
-
     image = cv2.imread(img_path)
     image = scale_hd(image)
 
-    # I = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.int32)
-    I = np.dot(image[..., :3], [0.114, 0.587, 0.299])
+    I = bgr_to_grayscale(image)
 
     interactive_harris(I, image)
 

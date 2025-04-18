@@ -87,9 +87,9 @@ if __name__ == "__main__":
     img_path = os.path.join(IMG_DIR, IMG_NAME)
 
     image = cv2.imread(img_path)
-    image = scale_image(image, 1440 / image.shape[1])
+    image = scale_hd(image)
 
-    I = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.int32)
+    I = bgr_to_grayscale(image)
 
     interactive_moravec(I, image)
 

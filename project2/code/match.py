@@ -4,6 +4,7 @@ from numpy.typing import NDArray
 from sklearn.neighbors import BallTree
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import pickle
 
 from utils import *
 from harris import harris
@@ -27,7 +28,7 @@ def get_descriptor(mat: NDArray, x: int, y: int) -> NDArray:
     return patch.astype(np.uint32)
 
 
-def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh = 0.8) -> list[tuple[tuple[int,int], tuple[int,int]]]:
+def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh: float = 0.8, save: str = None) -> list[tuple[tuple[int,int], tuple[int,int]]]:
     '''
     Find feature points on `src_img` and match them with points on `dst_img`. 
     Returns a list of matches, each match consists of an xy coordinate from 
@@ -39,19 +40,30 @@ def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh 
         `overlap`: ratio of overlap part, should be a value in (0, 1].
         `unique_thresh`: a match is good if `min_diff / second_min_diff` is 
         smaller then this value, should be a value in (0, 1].
+        `save`: path for the save file, will return immediately if save file 
+        exists, default not loading nor saving.
     '''
+    if save and os.path.exists(save):
+        with open(save, 'rb') as f:
+            matches = pickle.load(f)
+        print(f"Matches loaded from save file {save}")
+        return matches
+
     if not 0 < overlap <= 1:
         print(f"[Error] overlap range not in (0, 1], value = {overlap}")
         raise ValueError
+
+    timer = Timer()
+    timer.start()
 
     start_idx = int(src_img.shape[1] * (1 - overlap))
     src_I = bgr_to_grayscale(src_img)
 
     feats = harris(src_I[:,start_idx:], max_n = 1000) # only overlap part
     feats = [(x, y+start_idx) for x, y in feats]
-    print(f"Fetched features! n = {len(feats)}")
+    print(f"Fetched features! n = {len(feats)}, time = {timer.lap()}s")
 
-    show_image(draw_circles(src_img, feats))
+    # show_image(draw_circles(src_img, feats))
 
     dst_n, dst_m = dst_img.shape[:2]
     dst_xys = [(x, y) for x in range(dst_n) for y in range(int(dst_m * overlap))]
@@ -59,7 +71,7 @@ def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh 
     print(f"Building destination descriptor Ball-tree...")
     dst_des = [get_descriptor(dst_img, x, y) for x, y in dst_xys]
     dst_tree = BallTree(dst_des)
-    print(f"Ball-tree Successfully built!")
+    print(f"Ball-tree Successfully built! time = {timer.lap()}s")
     
     matches = []
     for sx, sy in tqdm(feats):
@@ -90,7 +102,13 @@ def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh 
         # show_image(concat_images([scale_image(patch_from_des(src_des), 40, cv2.INTER_NEAREST),
         #                           scale_image(patch_from_des(ret_des), 40, cv2.INTER_NEAREST)]))
 
-    print(f"Match finished! Found n = {len(matches)} matches.")
+    print(f"Match finished! Found n = {len(matches)} matches. time = {timer.lap()}s")
+    
+    if save:
+        with open(save, "wb") as f:
+            pickle.dump(matches, f)
+        print(f"Matches saved at {save}")
+
     return matches
 
 
@@ -123,7 +141,7 @@ def draw_match_vectors(n, m, matches):
     plt.colorbar()
     plt.xticks(ticks=[0, size/2, size], labels=[0, int(m/2), m])
     plt.yticks(ticks=[0, size/2, size], labels=[int(-n/2), 0, int(n/2)])
-    plt.savefig("../output/match_vector_heatmap.png", dpi=300)
+    plt.savefig("../output/match_vector_heatmap.png", dpi=160)
     img = cv2.imread("../output/match_vector_heatmap.png")
     show_image(img)
     
@@ -136,9 +154,12 @@ if __name__ == "__main__":
     src_path = os.path.join(IMG_DIR, src_name)
     dst_path = os.path.join(IMG_DIR, dst_name)
 
-    src_img = scale_hd(cv2.imread(src_path))
-    dst_img = scale_hd(cv2.imread(dst_path))
+    src_img = cv2.imread(src_path)
+    dst_img = cv2.imread(dst_path)
 
-    matches = match(src_img, dst_img, 0.5)
+    src_img = scale_hd(src_img)
+    dst_img = scale_hd(dst_img)
+
+    matches = match(src_img, dst_img, 0.5, save="../tmp/match-test.pkl")
     draw_matches(src_img, dst_img, matches)
     draw_match_vectors(*src_img.shape[:2], matches)

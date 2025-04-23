@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from numpy.typing import NDArray
+import time
 
 def init_cv2_window(window_name = "CV2 Window") -> str:
     '''Move cv2 window to a better position on screen. Returns the window name. '''
@@ -74,3 +75,26 @@ def random_color():
 
     bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0][0]
     return tuple(int(c) for c in bgr)
+
+
+class Timer:
+    def __init__(self, decimal = 1):
+        self._start_time = 0
+        self._lap_time = 0
+        self._decimal = decimal
+    
+    def start(self):
+        self._start_time = self._lap_time = time.time()
+    
+    def lap(self):
+        new_lap_time = time.time()
+        ret = new_lap_time - self._lap_time
+        self._lap_time = new_lap_time
+        return round(ret, self._decimal)
+    
+    def stop(self):
+        return round(time.time() - self._start_time, self._decimal)
+
+    
+
+    

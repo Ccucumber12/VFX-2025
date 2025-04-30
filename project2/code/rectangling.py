@@ -5,8 +5,6 @@ from tqdm import tqdm, trange
 
 from utils import *
 
-EMPTY = 0
-
 
 class SeamAnimation:
     def __init__(self, height, width, out = "output.avi"):
@@ -59,10 +57,16 @@ def get_longest_true_segment(arr: NDArray) -> tuple[int, int]:
     return starts[max_idx], ends[max_idx]
 
 
-def get_segment(I: NDArray) -> tuple[Transform, tuple[int, int]]:
+def get_segment(mat: NDArray) -> tuple[Transform, tuple[int, int]]:
     '''
-    Returns the transformation that makes the segment on top horizontally.
-    The second tuple indicates the left / right bound of the longest segment.
+    Find the longest empty segment using the given image alpha.
+
+    Param:
+        - `A`: alpha channel of the image, `0` indicates empty.
+    
+    Return:
+        - `Transform`: the transformation that makes the segment on top horizontally.
+        - `tuple[int,int]`: the left / right bound of the longest segment.
     '''
     transforms = [Transform(bool(i&1), bool(i&2)) for i in range(4)]
 
@@ -70,8 +74,8 @@ def get_segment(I: NDArray) -> tuple[Transform, tuple[int, int]]:
     best_l, best_r = 0, 0
 
     for t in transforms:
-        row = t.apply(I)[0]
-        l, r = get_longest_true_segment(row == EMPTY)
+        row = t.apply(mat)[0]
+        l, r = get_longest_true_segment(row)
         if r - l > best_r - best_l:
             best_t = t
             best_l = l
@@ -80,20 +84,27 @@ def get_segment(I: NDArray) -> tuple[Transform, tuple[int, int]]:
     return best_t, (best_l, best_r)
 
 
+def get_segment_height(mat: NDArray) -> int:
+    '''Find how many rows starting from the top are all empty'''
+    return np.argmax(~np.all(mat, axis=1)) if not np.all(mat) else mat.shape[0]
+
+
 def seam_carving(img: NDArray) -> NDArray:
     INF = 1e8
     img = img.copy()
     n, m = img.shape[:2]
 
     anm = SeamAnimation(*scale_hd(img).shape[:2], "../output/seam.mp4")
-    count = np.count_nonzero(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) == EMPTY)
+    count = np.count_nonzero(img[:,:,3] == 0)
 
     with tqdm(total=count) as pbar:
         while True:
-            I = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            T, (l, r) = get_segment(I)
+            isEmpty = (img[:,:,3] == 0)
+            T, (l, r) = get_segment(isEmpty)
             if r - l == 0:
                 break
+
+            I = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
             subI = T.apply(I)[:,l:r].astype(np.float32)
             AIx = np.abs(cv2.filter2D(subI, -1, np.array([[-1], [0], [1]])))
             AIy = np.abs(cv2.filter2D(subI, -1, np.array([[-1, 0, 1]])))
@@ -130,14 +141,16 @@ def seam_carving(img: NDArray) -> NDArray:
             for x, y in coords:
                 img[:x-1, y] = img[1:x, y]
                 img[x, y] = ((img[np.clip(x-1, 0, n-1), y].astype(np.int16) + 
-                            img[np.clip(x+1, 0, n-1), y].astype(np.int16)) // 2).astype(np.uint8)
+                              img[np.clip(x+1, 0, n-1), y].astype(np.int16)) // 2).astype(np.uint8)
 
-            # canvas = img.copy()
-            # for x, y in coords:
-            #     cv2.circle(canvas, (y, x), 2, [0, 0, 255], -1)
-            # canvas = T.reverse(canvas)
-            # # show_image(T.reverse(canvas))
-            # anm.write(scale_hd(canvas))
+            print(l, r)
+            if r - l > 5:
+                canvas = img.copy()
+                for x, y in coords:
+                    cv2.circle(canvas, (y, x), 2, [0, 0, 255], -1)
+                canvas = T.reverse(canvas)
+                # show_image(scale_hd(canvas))
+                anm.write(scale_hd(canvas))
 
             img = T.reverse(img)
             pbar.update(r - l)
@@ -148,10 +161,10 @@ def seam_carving(img: NDArray) -> NDArray:
 
 if __name__ == '__main__':
     IMG_DIR = "../data/rectangling"
-    src_name = "day.jpg"
+    src_name = "night.png"
     src_path = os.path.join(IMG_DIR, src_name)
 
-    src_img = cv2.imread(src_path)
+    src_img = cv2.imread(src_path, cv2.IMREAD_UNCHANGED)
 
     img = seam_carving(src_img)
-    cv2.imwrite("../output/day-rect.jpg", img)
+    cv2.imwrite(f"../output/{src_name[:-4]}-rect.jpg", img)

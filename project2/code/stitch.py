@@ -37,11 +37,21 @@ def blending(best_moving: tuple[int, int], img1: NDArray, img2: NDArray) -> NDAr
         for j in range(W):
             img1_percent = max(min(1.0, (w1 - j) * 1.0 / x_overlap), 0)
             img1_i = i - max(best_moving[0], 0)
-            if img1_i >= 0 and img1_i < h1 and j < w1:
-                pano[i, j] = img1_percent * img1[img1_i, j]
             img2_i, img2_j = i + min(best_moving[0], 0), j + best_moving[1]
-            if img2_i >= 0 and img2_i < h2 and img2_j >= 0 and img2_j < w2:
-                pano[i, j] += (1 - img1_percent) * img2[img2_i, img2_j]
+            in_img1 = 0 <= img1_i < h1 and j < w1
+            in_img2 = 0 <= img2_i < h2 and 0 <= img2_j < w2
+            if in_img1 and in_img2:
+                if img1[img1_i, j, 3] == 0:
+                    pano[i, j] = img2[img2_i, img2_j]
+                elif img2[img2_i, img2_j, 3] == 0:
+                    pano[i, j] = img1[img1_i, j]
+                else:
+                    pano[i, j] = img1_percent * img1[img1_i, j] + (1 - img1_percent) * img2[img2_i, img2_j]
+                    pano[i, j, 3] = max(img1[img1_i, j, 3], img2[img2_i, img2_j, 3])
+            elif in_img1:
+                pano[i, j] = img1[img1_i, j]
+            elif in_img2:
+                pano[i, j] = img2[img2_i, img2_j]
     return pano
 
 def end_to_end_alignment(image: NDArray, sum_moving_y: int) -> NDArray:
@@ -66,15 +76,18 @@ def load_image_infos(dir: str, file_name: str = "focal.txt") -> tuple[list[str],
     return image_names, focal_lengths
 
 def cylindrical_warp(image: NDArray, focal: float) -> NDArray:
-    h, w, c = image.shape
-    cylinder = np.zeros((h, w, c)).astype(np.float32)
+    h, w, _ = image.shape
+    png_image = np.zeros((h, w, 4)).astype(np.uint8)
+    png_image[:, :, :3] = image
+    png_image[:, :, 3] = 255
+    cylinder = np.zeros((h, w, 4)).astype(np.float32)
     x_origin, y_origin = w // 2, h // 2
     for i in range(h):
         for j in range(w):
             x, y = j - x_origin, i - y_origin
             x_prime = int(np.round(focal * math.atan(x / focal)))
             y_prime = int(np.round(focal * y / math.sqrt(x * x + focal * focal)))
-            cylinder[y_prime + y_origin][x_prime + x_origin] = image[i][j]
+            cylinder[y_prime + y_origin][x_prime + x_origin] = png_image[i][j]
     x_min, x_max = int(np.round(focal * np.atan(-x_origin / focal))), int(np.round(focal * np.atan((w - x_origin) / focal)))
     print(cylinder.shape)
     return cylinder[:, (x_min + x_origin) : (x_max + x_origin)]
@@ -109,6 +122,6 @@ if __name__ == "__main__":
     for i, cur_moving in enumerate(best_movings):
         sum_moving = [a + b for a, b in zip(cur_moving, sum_moving)]
         panorama = blending(sum_moving, panorama, warp_images[i + 1])
-    cv2.imwrite(os.path.join(OUTPUT_DIR, "output.jpg"), panorama)
+    cv2.imwrite(os.path.join(OUTPUT_DIR, "output.png"), panorama)
     aligned_panorama = end_to_end_alignment(panorama, sum_moving[0])
-    cv2.imwrite(os.path.join(OUTPUT_DIR, "output_aligned.jpg"), aligned_panorama)
+    cv2.imwrite(os.path.join(OUTPUT_DIR, "output_aligned.png"), aligned_panorama)

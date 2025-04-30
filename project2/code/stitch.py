@@ -3,6 +3,7 @@ import os
 import cv2
 from numpy.typing import NDArray
 import math
+import argparse
 
 from match import *
 
@@ -43,13 +44,25 @@ def blending(best_moving: tuple[int, int], img1: NDArray, img2: NDArray) -> NDAr
                 pano[i, j] += (1 - img1_percent) * img2[img2_i, img2_j]
     return pano
 
+def end_to_end_alignment(image: NDArray, sum_moving_y: int) -> NDArray:
+    w = image.shape[1]
+    
+    aligned_image = image
+    shift = 0 if sum_moving_y > 0 else -sum_moving_y
+    step = (sum_moving_y * 1.0) / w
+    for i in range(w):
+        aligned_image[:, i] = np.roll(image[:, i], int(shift), axis=0)
+        shift += step
+
+    return aligned_image
+
 def load_image_infos(dir: str, file_name: str = "focal.txt") -> tuple[list[str], list[float]]:
     image_names, focal_lengths = [], []
     with open(os.path.join(dir, file_name), "r") as file:
         for line in file:
             image_name, focal = line.strip().split()
             image_names.append(image_name)
-            focal_lengths.append(eval(focal) * 4)
+            focal_lengths.append(eval(focal))
     return image_names, focal_lengths
 
 def cylindrical_warp(image: NDArray, focal: float) -> NDArray:
@@ -67,19 +80,35 @@ def cylindrical_warp(image: NDArray, focal: float) -> NDArray:
     return cylinder[:, (x_min + x_origin) : (x_max + x_origin)]
 
 if __name__ == "__main__":
-    IMG_DIR = "../data2"
-    OUTPUT_DIR = "../output/data2"
+    IMG_DIR = "../data/day"
+    OUTPUT_DIR = "../output/"
+    
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--harris", action="store_true", help="use harris feature detection")
+    group.add_argument("--moravec", action="store_true", help="use moravec feature detection")
+    parser.add_argument("--ransac", type=float, help="the threshold used for ransac", default=5)
+    args = parser.parse_args()
+    feature_detection = "harris"
+    if args.moravec:
+        feature_detection = "moravec"
+    ransac_threshold = args.ransac
 
     image_names, focal_lengths = load_image_infos(IMG_DIR)
     warp_images = [cylindrical_warp(cv2.imread(os.path.join(IMG_DIR, name)), focal) for (name, focal) in zip(image_names, focal_lengths)]
     for (name, image) in zip(image_names, warp_images):
         cv2.imwrite(os.path.join(OUTPUT_DIR, name), image)
-    feature_matches = [match(warp_images[i], warp_images[i + 1], 0.5, save=os.path.join(OUTPUT_DIR, f"match-test{i}.pkl")) for i in range(len(warp_images) - 1)]
-    best_movings = [ransac(matches, 5) for matches in feature_matches]
+    feature_matches = [match(warp_images[i], 
+                             warp_images[i + 1], 
+                             0.5, save=os.path.join(OUTPUT_DIR, f"match_{feature_detection}_{i}.pkl"), 
+                             feature_detection=feature_detection) for i in range(len(warp_images) - 1)]
+    best_movings = [ransac(matches, ransac_threshold) for matches in feature_matches]
     print(best_movings)
     panorama = warp_images[0]
     sum_moving = [0, 0]
     for i, cur_moving in enumerate(best_movings):
         sum_moving = [a + b for a, b in zip(cur_moving, sum_moving)]
         panorama = blending(sum_moving, panorama, warp_images[i + 1])
-    cv2.imwrite(os.path.join(OUTPUT_DIR, "cylindrical_5.jpg"), panorama)
+    cv2.imwrite(os.path.join(OUTPUT_DIR, "output.jpg"), panorama)
+    aligned_panorama = end_to_end_alignment(panorama, sum_moving[0])
+    cv2.imwrite(os.path.join(OUTPUT_DIR, "output_aligned.jpg"), aligned_panorama)

@@ -8,6 +8,7 @@ import pickle
 
 from utils import *
 from harris import harris
+from moravec import moravec
 
 
 def get_descriptor(mat: NDArray, x: int, y: int) -> NDArray:
@@ -28,7 +29,7 @@ def get_descriptor(mat: NDArray, x: int, y: int) -> NDArray:
     return patch.astype(np.uint32)
 
 
-def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh: float = 0.8, save: str = None) -> list[tuple[tuple[int,int], tuple[int,int]]]:
+def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh: float = 0.8, save: str = None, feature_detection: str = "harris") -> list[tuple[tuple[int,int], tuple[int,int]]]:
     '''
     Find feature points on `src_img` and match them with points on `dst_img`. 
     Returns a list of matches, each match consists of an xy coordinate from 
@@ -42,6 +43,7 @@ def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh:
         smaller then this value, should be a value in (0, 1].
         `save`: path for the save file, will return immediately if save file 
         exists, default not loading nor saving.
+        `feature_detection`: the method for feature detection, should be "harris" or "moravec"
     '''
     if save and os.path.exists(save):
         with open(save, 'rb') as f:
@@ -59,7 +61,10 @@ def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh:
     start_idx = int(src_img.shape[1] * (1 - overlap))
     src_I = bgr_to_grayscale(src_img)
 
-    feats = harris(src_I[:,start_idx:], max_n = 1000) # only overlap part
+    if feature_detection == "harris":
+        feats = harris(src_I[:,start_idx:], max_n = 1000)   # only overlap part
+    elif feature_detection == "moravec":
+        feats = moravec(src_I[:,start_idx:])                # only overlap part
     feats = [(x, y+start_idx) for x, y in feats]
     print(f"Fetched features! n = {len(feats)}, time = {timer.lap()}s")
 

@@ -93,8 +93,8 @@ def cylindrical_warp(image: NDArray, focal: float) -> NDArray:
     return cylinder[:, (x_min + x_origin) : (x_max + x_origin)]
 
 if __name__ == "__main__":
-    IMG_DIR = "../data/day"
-    OUTPUT_DIR = "../output/"
+    IMG_DIR = "../data1"
+    OUTPUT_DIR = "../output/data1"
     
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()
@@ -110,9 +110,9 @@ if __name__ == "__main__":
     image_names, focal_lengths = load_image_infos(IMG_DIR)
     warp_images = [cylindrical_warp(cv2.imread(os.path.join(IMG_DIR, name)), focal) for (name, focal) in zip(image_names, focal_lengths)]
     for (name, image) in zip(image_names, warp_images):
-        cv2.imwrite(os.path.join(OUTPUT_DIR, name), image)
-    feature_matches = [match(warp_images[i], 
-                             warp_images[i + 1], 
+        cv2.imwrite(os.path.join(OUTPUT_DIR, name[:-3] + "png"), image)
+    feature_matches = [match(warp_images[i][:, :, :3], 
+                             warp_images[i + 1][:, :, :3], 
                              0.5, save=os.path.join(OUTPUT_DIR, f"match_{feature_detection}_{i}.pkl"), 
                              feature_detection=feature_detection) for i in range(len(warp_images) - 1)]
     best_movings = [ransac(matches, ransac_threshold) for matches in feature_matches]

@@ -1,8 +1,7 @@
 import cv2
 import os
-from scipy.ndimage import convolve
 from numpy.typing import NDArray
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 from utils import *
 
@@ -37,13 +36,11 @@ class Transform:
             return np.transpose(img, (1, 0, 2))
     
     def apply(self, img: NDArray) -> NDArray:
-        img = img.copy()
         if self._tr: img = self.transpose(img)
         if self._ud: img = np.flipud(img)
         return img
     
     def reverse(self, img: NDArray) -> NDArray:
-        img = img.copy()
         if self._ud: img = np.flipud(img)
         if self._tr: img = self.transpose(img)
         return img
@@ -97,9 +94,9 @@ def seam_carving(img: NDArray) -> NDArray:
             T, (l, r) = get_segment(I)
             if r - l == 0:
                 break
-            subI = T.apply(I)[:,l:r].astype(np.int32)
-            AIx = np.abs(convolve(subI, [[-1], [0], [1]]))
-            AIy = np.abs(convolve(subI, [[-1, 0, 1]]))
+            subI = T.apply(I)[:,l:r].astype(np.float32)
+            AIx = np.abs(cv2.filter2D(subI, -1, np.array([[-1], [0], [1]])))
+            AIy = np.abs(cv2.filter2D(subI, -1, np.array([[-1, 0, 1]])))
             E = AIx + AIy
             E[subI == 0] = INF
             
@@ -135,12 +132,12 @@ def seam_carving(img: NDArray) -> NDArray:
                 img[x, y] = ((img[np.clip(x-1, 0, n-1), y].astype(np.int16) + 
                             img[np.clip(x+1, 0, n-1), y].astype(np.int16)) // 2).astype(np.uint8)
 
-            canvas = img.copy()
-            for x, y in coords:
-                cv2.circle(canvas, (y, x), 2, [0, 0, 255], -1)
-            canvas = T.reverse(canvas)
-            # show_image(T.reverse(canvas))
-            anm.write(scale_hd(canvas))
+            # canvas = img.copy()
+            # for x, y in coords:
+            #     cv2.circle(canvas, (y, x), 2, [0, 0, 255], -1)
+            # canvas = T.reverse(canvas)
+            # # show_image(T.reverse(canvas))
+            # anm.write(scale_hd(canvas))
 
             img = T.reverse(img)
             pbar.update(r - l)

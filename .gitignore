@@ -172,3 +172,16 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# MacOS
+*.DS_Store
+
+# LaTeX
+*.fls
+*.sync
+*.aux
+*.log
+*.gz
+*.out
+*fdb_latexmk
+*.exe

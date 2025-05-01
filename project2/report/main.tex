@@ -1,0 +1,130 @@
+\documentclass[12pt]{article}
+\usepackage{geometry} 
+\usepackage{xeCJK}
+\usepackage{fontspec} 
+\usepackage{amsmath,amsthm,amssymb,yhmath,bm}
+\usepackage{array}
+\usepackage{graphicx} 
+\usepackage{tabularx}
+\usepackage{ragged2e}
+\usepackage{enumerate}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{lstautogobble}
+\usepackage{fancyvrb} 
+\usepackage[usenames, dvipsnames]{color}
+\usepackage[svgnames, x11names]{xcolor}
+\usepackage{tcolorbox}
+\usepackage{multirow} 
+\usepackage{pst-plot} 
+\usepackage[unicode=true, bookmarksdepth=-1]{hyperref}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{titling}
+\usepackage{lastpage}
+\usepackage{forest}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xurl}
+\usepackage{physics}
+\usepackage{braket}
+\usepackage{stmaryrd}
+\usepackage{unicode-math}
+\usepackage{cancel}
+\usepackage{harpoon}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows,automata,positioning}
+\usetikzlibrary{matrix}
+\tikzset{
+->, % makes the edges directed
+>=stealth', % makes the arrow heads bold
+node distance=3cm, % specifies the minimum distance between two nodes. Change if necessary.
+every state/.style={thick, fill=gray!10}, % sets the properties for each ’state’ node
+initial text=$ $, % sets the text that appears on the start arrow
+}
+
+\geometry{
+	a4paper, 
+	left=15mm, 
+	right=15mm,
+	top=20mm, 
+	bottom=15mm
+}
+\fancypagestyle{std}{
+	\fancyhead[L]{\course}
+	\fancyhead[C]{}
+	\fancyhead[R]{\title} 
+	\fancyfoot[L]{}
+	\fancyfoot[C]{}
+	\fancyfoot[R]{\thepage\ of \pageref{LastPage}}
+	\renewcommand{\headrulewidth}{0.4pt}
+	\renewcommand{\footrulewidth}{0.4pt}
+}
+\pagestyle{std}
+\setCJKmainfont{NotoSerifCJKtc-Regular}
+\setCJKmonofont{NotoSansCJKtc-Regular}
+% \setmainfont{Times New Roman}
+% \setmonofont[Scale=1]{Consolas}
+\setlength\headheight{15pt}
+\renewcommand{\baselinestretch}{1.15}
+\parindent 0cm
+\parskip 0.3cm
+
+\graphicspath{ {images/} }
+% \setlist[itemize, 1]{noitemsep, topsep=0pt}
+\setlist[enumerate]{itemsep=-0.5ex,topsep=-0.5ex}
+\setlist[itemize]{itemsep=-0.5ex,topsep=-0.5ex}
+
+\renewcommand{\maketitle}{
+    \thispagestyle{std}
+    \begin{center}
+        {\LARGE \bfseries \title} \\[10pt]
+        {\author} \\
+        {\today}
+    \end{center}
+}
+
+\newcommand{\code}[1]{\tcbox[
+	left=0mm, right=0mm, top=0mm, bottom=0mm,
+	on line, colframe=white, colback=Gainsboro!70
+]{\small{\texttt{\detokenize{#1}}}}}
+\newcommand{\codeD}[1]{\tcbox[
+	left=0mm, right=0mm, top=0mm, bottom=0mm,
+	on line, colframe=white, colback=Gainsboro!70
+]{\small{\texttt{#1}}}}
+
+\lstset{
+    language=python,
+    basicstyle=\tiny\ttfamily,
+    numbers=left,
+    numberstyle=\tiny\ttfamily,
+    stepnumber=1,
+    numbersep=1em,
+    backgroundcolor=\color{white},
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    frame=false,
+    tabsize=4,
+    captionpos=b,
+    breaklines=true,
+    breakatwhitespace=false,
+    escapeinside={\%*}{*)},
+    morekeywords={constexpr},
+    keywordstyle=\bfseries\color{Blue1},
+    commentstyle=\itshape\color{Red4},
+    stringstyle=\itshape\color{Green4},
+    framesep=0.5em,
+    xleftmargin=1.5em,
+}
+
+\hypersetup{
+	colorlinks=true,
+	urlcolor=blue,
+	linkcolor=black,
+}
+
+\input{content}

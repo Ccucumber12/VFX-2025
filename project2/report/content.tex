@@ -1,0 +1,80 @@
+\renewcommand{\author}{張晴昀 (B10902064)\\黃允謙 (B10902067)}
+\renewcommand{\title}{Project 2: Image Stitching}
+\newcommand{\course}{Digital Visual Effects (NTU CSIE, Spring 2025)}
+
+\renewcommand\tabularxcolumn[1]{>{\Centering}m{#1}}
+
+\begin{document}
+\maketitle
+
+
+\section{Description}
+
+This project aims to stitch a set of images into a seamless panorama. The 
+process involves several key image processing steps, including feature detection, 
+description, and matching. Once corresponding features are matched across images, 
+further operations such as warping, blending, alignment and cropping are 
+performed to generate the final panoramic output. Image stitching enhances both 
+the effective resolution and the field of view, making it a powerful technique 
+for producing wide-angle visual representations.
+
+
+\section{Processing Flow}
+\begin{enumerate}
+  \item Feature Detection
+  \begin{itemize}
+    \item Moravec Corner Detector
+    \item Harris Corner Detector (Bonus)
+  \end{itemize}
+  \item Feature Description
+  \item Feature Matching
+  \item Image matching
+  \item Blending
+  \item End-to-end Alignment (Bonus)
+  \item Rectangling (Bonus)
+\end{enumerate}
+
+
+\section{Feature Detection}
+\subsection{Moravec Corner Detector}
+
+We first implement the simple Moravec corner detector. For each pixel, the 
+algorithm calculates the intensity difference between its patch and a shifted 
+version. Then, it uses the minimum difference among four shifted directions as 
+the pixel's energy. A corner exhibits drastic intensity changes in all 
+directions, and thus results in higher energy.
+$$
+  E(\mathbf{u}) = 
+  \sum_{X} w(\mathbf{x}) [I(\mathbf x + \mathbf u) - I(\mathbf x)]^2
+$$
+
+\subsection{Harris Corner Detector}
+
+However, Moravec has several problems. First, it uses a binary window function 
+for the patch, which makes it more susceptible to noise. Second, it only 
+considers shifts in eight directions, potentially missing corners at other angles.
+
+The Harris corner detector introduces an alternative method for computing the 
+energy to address these issues. It uses a Gaussian function to produce a 
+smoother window for the patch. Then, it applies Taylor expansion to approximate 
+the intensity difference for a given shift direction, which can be expressed as:
+$$
+  E(\mathbf{u}) \approxeq \mathbf{u}^\intercal\mathbf{M}\mathbf{u}, \quad 
+  \mathbf{M} = \sum_{x, y} w(x, y) \begin{bmatrix}
+    I_x^2 & I_xI_y \\ I_y^2 & I_y^2
+  \end{bmatrix}
+$$
+Since $E$ is a quadratic function of the shift vector $\mathbf{u}$, we can 
+analyze its shape by examining the properties of $\mathbf{M}$. As a result, 
+Harris considered the eigenvalues of $\mathbf{M}$. When both eigenvalues are 
+large, it indicates that $E$ will be large in all directions $\mathbf{u}$, 
+suggesting the presence of a corner. Harris proposed the following energy function:
+$$  
+  E = \mathrm{det}\mathbf{M} - k (\mathrm{tr}\mathbf{M})^2
+  = \lambda_1\lambda_2 - k(\lambda_1 + \lambda_2)^2
+$$
+
+
+
+
+\end{document}

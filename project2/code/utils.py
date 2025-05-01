@@ -18,7 +18,7 @@ def scale_image(mat: NDArray, scale: float, interpolation = cv2.INTER_CUBIC) -> 
     new_size = (int(width * scale), int(height * scale))
     return cv2.resize(mat, new_size, interpolation=interpolation)
 
-def show_image(mat: NDArray, colormap = cv2.COLORMAP_BONE) -> None:
+def show_image(mat: NDArray, colormap = cv2.COLORMAP_BONE) -> NDArray:
     mat = mat.copy()
     if len(mat.shape) == 2: # grayscale
         if mat.dtype == np.bool_:
@@ -30,6 +30,7 @@ def show_image(mat: NDArray, colormap = cv2.COLORMAP_BONE) -> None:
     cv2.imshow(winname, mat)
     cv2.waitKey(0)
     cv2.destroyWindow(winname)
+    return mat
 
 def normalize_to_uint8(mat: NDArray) -> NDArray:
     return cv2.normalize(mat, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)

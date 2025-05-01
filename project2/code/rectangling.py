@@ -6,21 +6,6 @@ from tqdm import tqdm, trange
 from utils import *
 
 
-class SeamAnimation:
-    def __init__(self, height, width, out = "output.avi"):
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        fps = 10
-        self.video = cv2.VideoWriter(out, fourcc, fps, (width, height))
-    
-    def write(self, frame: NDArray):
-        self.video.write(frame)
-    
-    def release(self):
-        self.video.release()
-    
-    def __del__(self):
-        self.release()
-
 
 class Transform:
     def __init__(self, transpose: bool, flipud: bool):
@@ -89,12 +74,13 @@ def get_segment_height(mat: NDArray) -> int:
     return np.argmax(~np.all(mat, axis=1)) if not np.all(mat) else mat.shape[0]
 
 
-def seam_carving(img: NDArray) -> NDArray:
+def seam_carving(img: NDArray, create_vid: bool = False) -> NDArray:
     INF = 1e8
     img = img.copy()
     n, m = img.shape[:2]
 
-    anm = SeamAnimation(*scale_hd(img).shape[:2], "../output/seam.mp4")
+    if create_vid:
+        anm = Animator(*scale_hd(img).shape[:2], "../output/seam.mp4")
     count = np.count_nonzero(img[:,:,3] == 0)
 
     with tqdm(total=count) as pbar:
@@ -143,14 +129,13 @@ def seam_carving(img: NDArray) -> NDArray:
                 img[x, y] = ((img[np.clip(x-1, 0, n-1), y].astype(np.int16) + 
                               img[np.clip(x+1, 0, n-1), y].astype(np.int16)) // 2).astype(np.uint8)
 
-            print(l, r)
-            if r - l > 5:
+            if create_vid and r - l > 5:
                 canvas = img.copy()
                 for x, y in coords:
                     cv2.circle(canvas, (y, x), 2, [0, 0, 255], -1)
                 canvas = T.reverse(canvas)
-                # show_image(scale_hd(canvas))
-                anm.write(scale_hd(canvas))
+                # show_image(to_white_bg(scale_hd(canvas)))
+                anm.write(to_white_bg(scale_hd(canvas)))
 
             img = T.reverse(img)
             pbar.update(r - l)
@@ -158,7 +143,6 @@ def seam_carving(img: NDArray) -> NDArray:
     return img
 
         
-
 if __name__ == '__main__':
     IMG_DIR = "../data/rectangling"
     src_name = "night.png"
@@ -167,4 +151,4 @@ if __name__ == '__main__':
     src_img = cv2.imread(src_path, cv2.IMREAD_UNCHANGED)
 
     img = seam_carving(src_img)
-    cv2.imwrite(f"../output/{src_name[:-4]}-rect.jpg", img)
+    cv2.imwrite(f"../output/{src_name[:-4]}-rect.jpg", to_white_bg(img))

@@ -76,6 +76,20 @@ def random_color():
     bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0][0]
     return tuple(int(c) for c in bgr)
 
+    
+def to_white_bg(mat: NDArray) -> NDArray:
+    '''`mat` is bgra 4-channel image.'''
+    b, g, r, a = cv2.split(mat)
+    alpha = a.astype(np.float32) / 255.0
+    alpha = np.stack([alpha]*3, axis=-1)
+
+    bgr = cv2.merge([b, g, r]).astype(np.float32)
+
+    white_bg = np.ones_like(bgr) * 255
+    out = bgr * alpha + white_bg * (1 - alpha)
+    return np.clip(out, 0, 255).astype(np.uint8)
+    
+
 
 class Timer:
     def __init__(self, decimal = 1):
@@ -95,6 +109,18 @@ class Timer:
     def stop(self):
         return round(time.time() - self._start_time, self._decimal)
 
-    
 
+class Animator:
+    def __init__(self, height, width, out = "output.mp4"):
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fps = 30
+        self.video = cv2.VideoWriter(out, fourcc, fps, (width, height))
     
+    def write(self, frame: NDArray):
+        self.video.write(frame)
+    
+    def release(self):
+        self.video.release()
+    
+    def __del__(self):
+        self.release()

@@ -60,7 +60,7 @@ smoother window for the patch. Then, it applies Taylor expansion to approximate
 the intensity difference for a given shift direction, which can be expressed as:
 $$
   E(\mathbf{u}) \approxeq \mathbf{u}^\intercal\mathbf{M}\mathbf{u}, \quad 
-  \mathbf{M} = \sum_{x, y} w(x, y) \begin{bmatrix}
+  \mathbf{M} = \sum_{X} w(\mathbf x) \begin{bmatrix}
     I_x^2 & I_xI_y \\ I_y^2 & I_y^2
   \end{bmatrix}
 $$
@@ -74,6 +74,84 @@ $$
   = \lambda_1\lambda_2 - k(\lambda_1 + \lambda_2)^2
 $$
 
+\subsection{Comparison}
+
+In Figure \ref{fig:feature-detection-comparison}, we demonstrate the results of 
+the Moravec and Harris algorithms. In all the images, redder colors indicate 
+higher values, while bluer colors indicate lower values.
+
+Both algorithms performs well in identifying the corners or possible feature 
+locations. In the Harris algorithm column, we observe that the horizontal and 
+vertical lines appear in blue, which aligns with our expectations. However, we 
+did not anticipate that a diagonal line would appear in red and be classified as
+a corner. 
+
+\begin{figure}[htbp]
+    \centering
+
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\textbf{Image}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\textbf{Moravec}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\textbf{Harris}
+    \end{subfigure}
+    \vskip1ex
+
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\includegraphics[width=\textwidth]{geometry.jpg}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\includegraphics[width=\textwidth]{geometry-moravec.jpg}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\includegraphics[width=\textwidth]{geometry-harris.jpg}
+    \end{subfigure}
+    \vskip\baselineskip
+
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\includegraphics[width=\textwidth]{toyosato.jpg}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\includegraphics[width=\textwidth]{toyosato-moravec.jpg}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\includegraphics[width=\textwidth]{toyosato-harris.jpg}
+    \end{subfigure}
+    \vskip\baselineskip
+
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\includegraphics[width=\textwidth]{nagoya.jpg}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\includegraphics[width=\textwidth]{nagoya-moravec.jpg}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\textwidth}
+        \centering\includegraphics[width=\textwidth]{nagoya-harris.jpg}
+    \end{subfigure}
+    \caption{Comparison of Moravec and Harris Algorithms}
+    \label{fig:feature-detection-comparison}
+\end{figure}
+
+\subsection{Threshold}
+
+\subsection{Maximal Suppress}
+
+\subsection{Interactive Gadget}
+
+\section{Feature Description}
+
+\section{Feature Matching}
 
 
 

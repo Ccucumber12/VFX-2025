@@ -169,6 +169,92 @@ translation estimate.
 
 \subsection{Threshold}
 
+In Figure~\ref{fig:image-matching-comparison}, we apply different thresholds 
+$(5, 10, 50, 100)$ in the RANSAC algorithm for comparison. The feature points 
+used for matching are extracted using the Harris Corner Detector. For the Day 
+panoramas, when the threshold is set to 100, neither building aligns well. At 
+a threshold of 50, the left building aligns well, but the right one remains 
+misaligned. When the threshold is reduced to 10, both buildings are well aligned, 
+resulting in a coherent panorama. Further lowering the threshold to 5 produces a 
+result that is visually similar to the one obtained with a threshold of 10. 
+For the Night panoramas, the alignment appears generally consistent across all 
+thresholds. However, a slight shift is observed in the roof region of each 
+panorama, and this shift becomes less noticeable as the threshold decreases.
+The Night panorama with threshold of 100 shows better alignment than the 
+corresponding Day panorama. This difference may be attributed to the presence 
+of moving people in the Day images. Some feature points may have been detected 
+on those people, which do not occupy consistent positions across the images.
+
+\begin{figure}[htbp]
+  \centering
+
+  \begin{subfigure}[b]{\textwidth}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+      \centering\textbf{Day}
+    \end{minipage}
+    \hfil
+    \begin{minipage}{0.45\textwidth}
+      \centering\textbf{Night}
+    \end{minipage}
+  \end{subfigure}
+  \vskip1ex
+
+  \begin{subfigure}[b]{\textwidth}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{day_100.pdf}
+    \end{minipage}
+    \hfil
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{night_100.pdf}
+    \end{minipage}
+    \caption{threshold = 100}
+  \end{subfigure}
+  \vskip\baselineskip
+
+  \begin{subfigure}[b]{\textwidth}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{day_50.pdf}
+    \end{minipage}
+    \hfil
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{night_50.pdf}
+    \end{minipage}
+    \caption{threshold = 50}
+  \end{subfigure}
+  \vskip\baselineskip
+
+  \begin{subfigure}[b]{\textwidth}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{day_10.pdf}
+    \end{minipage}
+    \hfil
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{night_10.pdf}
+    \end{minipage}
+    \caption{threshold = 10}
+  \end{subfigure}
+  \vskip\baselineskip
+  
+  \begin{subfigure}[b]{\textwidth}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{day_5.pdf}
+    \end{minipage}
+    \hfil
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{night_5.pdf}
+    \end{minipage}
+    \caption{threshold = 5}
+  \end{subfigure}
+
+  \caption{Comparison of RANSAC performance under different thresholds}
+  \label{fig:image-matching-comparison}
+\end{figure}
+
 \section{Blending}
 
 To seamlessly combine the aligned images, we apply linear blending in the 
@@ -198,6 +284,51 @@ vertical adjustment. For example, if the resulting panorama is tilted toward the
 lower right, we shift the first column downward by a specified amount, while the 
 last column remains unchanged. The vertical shift for columns in between is 
 interpolated linearly within the range $[0, \text{shift of the first column}]$. 
-This gradual adjustment ensures a smooth vertical transition across the panorama.
+This gradual adjustment ensures a smooth vertical transition across the panorama, 
+as shown Figure~\ref{fig:end-to-end-alignment}.
+
+\begin{figure}[htbp]
+  \centering
+
+  \begin{subfigure}[b]{\textwidth}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+      \centering\textbf{Day}
+    \end{minipage}
+    \hfil
+    \begin{minipage}{0.45\textwidth}
+      \centering\textbf{Night}
+    \end{minipage}
+  \end{subfigure}
+  \vskip1ex
+
+  \begin{subfigure}[b]{\textwidth}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{day_5.pdf}
+    \end{minipage}
+    \hfil
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{night_5.pdf}
+    \end{minipage}
+    \caption{Before end-to-end alignment}
+  \end{subfigure}
+  \vskip\baselineskip
+
+  \begin{subfigure}[b]{\textwidth}
+    \centering
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{day_5_aligned.pdf}
+    \end{minipage}
+    \hfil
+    \begin{minipage}{0.45\textwidth}
+      \includegraphics[width=\textwidth]{night_5_aligned.pdf}
+    \end{minipage}
+    \caption{After end-to-end alignment}
+  \end{subfigure}
+
+  \caption{Effects of the end-to-end alignment}
+  \label{fig:end-to-end-alignment}
+\end{figure}
 
 \end{document}

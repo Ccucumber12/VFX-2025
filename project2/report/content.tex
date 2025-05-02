@@ -153,6 +153,51 @@ a corner.
 
 \section{Feature Matching}
 
+\section{Image Matching}
 
+To perform image matching, we estimate a 2D translation transformation that aligns 
+two images based on a set of matched feature points using the RANSAC algorithm. 
+The translation model assumes that the transformation between corresponding points 
+in the two images can be described by a vector $(d_x, d_y)$, where each point 
+$(x, y)$ in the first image maps to $(x + d_x, y + d_y)$ in the second image. 
+RANSAC is used to estimate this translation by iteratively selecting minimal 
+subsets of point correspondences (in this case, one pair is sufficient for 
+translation), computing the translation vector from the subset, and 
+identifying inliers that agree with the estimated model within a predefined 
+threshold. The model with the highest number of inliers is selected as the final 
+translation estimate.
+
+\subsection{Threshold}
+
+\section{Blending}
+
+To seamlessly combine the aligned images, we apply linear blending in the 
+overlapping region. After estimating the translation, the overlapping area between 
+two images is computed. In this region, pixel values are blended using a weighted 
+sum, where the weights vary linearly across the overlap to ensure a smooth 
+transition. Specificallym for each pixel $p$ in the region, the final value is 
+computed as 
+$$
+I(p) = \alpha(p_1) \cdot I_1(p_1) + (1 - \alpha(p_1)) \cdot I_2(p_2),
+$$ 
+where $I_1$ and $I_2$ are the intensity values from the two images, $p_1$ and $p_2$ 
+are the corresponding pixels in the two images, and $\alpha(p) \in [0, 1]$ is a 
+spatially varying weight based on the pixel's relative position within the 
+overlapping area. In our implementation, we asssume the first image is on the left 
+and the second image is on the right. The weight $\alpha(p_1)$ is determined based 
+on the pixel's horizontal distance from the right edge of the first image: pixels 
+at the edge are assigned a weight of $0$, pixels at the start of the overlapping 
+area are assigned $1$, and those in between are weighted linearly between $[0, 1]$.
+
+\section{End-to-end Alignment}
+
+To reduce visual discontinuities caused by vertical shift, we implement an 
+end-to-end alignment strategy that distributes the vertical shift across image 
+cloumns. After stitching all images to form a panorama, we apply a column-wise  
+vertical adjustment. For example, if the resulting panorama is tilted toward the 
+lower right, we shift the first column downward by a specified amount, while the 
+last column remains unchanged. The vertical shift for columns in between is 
+interpolated linearly within the range $[0, \text{shift of the first column}]$. 
+This gradual adjustment ensures a smooth vertical transition across the panorama.
 
 \end{document}

@@ -1,9 +1,9 @@
 import numpy as np
 import os
 import cv2
-from numpy.typing import NDArray
 import math
 import argparse
+from numpy.typing import NDArray
 
 from match import *
 
@@ -93,13 +93,13 @@ def cylindrical_warp(image: NDArray, focal: float) -> NDArray:
     return cylinder[:, (x_min + x_origin) : (x_max + x_origin)]
 
 if __name__ == "__main__":
-    IMG_DIR = "../data1"
-    OUTPUT_DIR = "../output/data1"
+    IMG_DIR = "../data/day"
+    OUTPUT_DIR = "../output"
     
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--harris", action="store_true", help="use harris feature detection")
-    group.add_argument("--moravec", action="store_true", help="use moravec feature detection")
+    group.add_argument("--harris", action="store_true", help="use harris feature detector")
+    group.add_argument("--moravec", action="store_true", help="use moravec feature detector")
     parser.add_argument("--ransac", type=float, help="the threshold used for ransac", default=5)
     args = parser.parse_args()
     feature_detection = "harris"

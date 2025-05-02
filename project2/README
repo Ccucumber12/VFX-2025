@@ -1,0 +1,15 @@
+# Project 2: Image Stitching
+
+## Usage
+```
+cd code
+python3 stitch.py [-h] [--harris | --moravec] [--ransac RANSAC]
+```
+
+Args:
+- `--harris | --moravec`: specifies the feature detection method to use. The default is harris.
+
+
+- `--ransac RANSAC`: sets the threshold used by the RANSAC algorithm. The default value is 5.
+
+## Dependency and Environment

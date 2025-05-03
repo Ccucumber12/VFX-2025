@@ -1,7 +1,7 @@
 import os
 import cv2
 from numpy.typing import NDArray
-from sklearn.neighbors import BallTree
+from sklearn.neighbors import KDTree
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pickle
@@ -12,7 +12,7 @@ from moravec import moravec
 
 
 def get_descriptor(mat: NDArray, x: int, y: int) -> NDArray:
-    l = 5
+    l = 7
     hl = l // 2
     if len(mat.shape) == 3:
         patch = np.zeros((l, l, 3), dtype=mat.dtype)
@@ -62,7 +62,7 @@ def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh:
     src_I = bgr_to_grayscale(src_img)
 
     if feature_detection == "harris":
-        feats = harris(src_I[:,start_idx:], max_n = 1000)   # only overlap part
+        feats = harris(src_I[:,start_idx:], max_n = 500)   # only overlap part
     elif feature_detection == "moravec":
         feats = moravec(src_I[:,start_idx:])                # only overlap part
     feats = [(x, y+start_idx) for x, y in feats]
@@ -73,14 +73,15 @@ def match(src_img: NDArray, dst_img: NDArray, overlap: float = 1, unique_thresh:
     dst_n, dst_m = dst_img.shape[:2]
     dst_xys = [(x, y) for x in range(dst_n) for y in range(int(dst_m * overlap))]
 
-    print(f"Building destination descriptor Ball-tree...")
-    dst_des = [get_descriptor(dst_img, x, y) for x, y in dst_xys]
-    dst_tree = BallTree(dst_des)
+    print(f"Building destination descriptor K-D Tree...")
+    dst_I = bgr_to_grayscale(dst_img)
+    dst_des = [get_descriptor(dst_I, x, y) for x, y in dst_xys]
+    dst_tree = KDTree(dst_des)
     print(f"Ball-tree Successfully built! time = {timer.lap()}s")
     
     matches = []
     for sx, sy in tqdm(feats):
-        src_des = get_descriptor(src_img, sx, sy)
+        src_des = get_descriptor(src_I, sx, sy)
 
         diffs, indices = dst_tree.query([src_des], k=2)
 
@@ -125,36 +126,44 @@ def draw_matches(src_img: NDArray, dst_img: NDArray, matches: list[tuple[tuple[i
     for (sx, sy), (dx, dy) in matches:
         dx, dy = trans_dst(dx, dy)
         color = random_color()
-        cv2.circle(canvas, (sy, sx), 4, color, -1)
-        cv2.circle(canvas, (dy, dx), 4, color, -1)
-        cv2.line(canvas, (sy, sx), (dy, dx), color, 1)
+        cv2.circle(canvas, (sy, sx), 8, color, -1)
+        cv2.circle(canvas, (dy, dx), 8, color, -1)
+        cv2.line(canvas, (sy, sx), (dy, dx), color, 5)
 
-    show_image(canvas)
-    cv2.imwrite(f"../output/{src_name[:-4]}-matched.jpg", canvas)
+    show_image(scale_hd(canvas))
+    cv2.imwrite(f"../output/{src_name[:-4]}-matched.jpg", scale_hd(canvas))
 
 
 def draw_match_vectors(n, m, matches):
-    size = 128
+    size = 256
     vectors = np.array([np.array([0.5+(x2-x1)/n, (y1-y2)/m]) for (x1, y1), (x2, y2) in matches])
+    vectors = (vectors * 4) - 1.5
     vectors = (vectors * size).astype(np.uint8)
 
     cnt = np.zeros((size, size))
     for x, y in vectors:
-        cnt[x, y] += 1
+        try:
+            cnt[x, y] += 1
+        except:
+            pass
+    cnt = np.log(1+cnt*100)
 
-    plt.imshow(cnt, cmap='hot', interpolation='gaussian')
-    plt.colorbar()
-    plt.xticks(ticks=[0, size/2, size], labels=[0, int(m/2), m])
-    plt.yticks(ticks=[0, size/2, size], labels=[int(-n/2), 0, int(n/2)])
-    plt.savefig("../output/match_vector_heatmap.png", dpi=160)
-    img = cv2.imread("../output/match_vector_heatmap.png")
+    plt.imshow(cnt, cmap='viridis', interpolation='catrom')
+    plt.xticks(ticks=[0, size/2, size], labels=[int(m*3/8), int(m/2), int(m*5/8)])
+    plt.yticks(ticks=[0, size/2, size], labels=[int(-n/8), 0, int(n/8)])
+
+    name = "../output/match_vector_heatmap.png"
+    plt.savefig(name, dpi=200)
+    img = cv2.imread(name)
+    img = img[91:902,191:1067,:]
     show_image(img)
+    cv2.imwrite(name, img)
     
 
 if __name__ == "__main__":
     IMG_DIR = "../data/cks-hall"
-    src_name = "148A8737.JPG"
-    dst_name = "148A8739.JPG"
+    src_name = "148A8707.JPG"
+    dst_name = "148A8709.JPG"
 
     src_path = os.path.join(IMG_DIR, src_name)
     dst_path = os.path.join(IMG_DIR, dst_name)
@@ -162,9 +171,9 @@ if __name__ == "__main__":
     src_img = cv2.imread(src_path)
     dst_img = cv2.imread(dst_path)
 
-    src_img = scale_hd(src_img)
-    dst_img = scale_hd(dst_img)
+    # src_img = scale_hd(src_img)
+    # dst_img = scale_hd(dst_img)
 
-    matches = match(src_img, dst_img, 0.5, save="../tmp/match-test.pkl")
+    matches = match(src_img, dst_img, 0.5)
     draw_matches(src_img, dst_img, matches)
     draw_match_vectors(*src_img.shape[:2], matches)

@@ -26,7 +26,7 @@ for producing wide-angle visual representations.
     \item Moravec Corner Detector
     \item Harris Corner Detector (Bonus)
   \end{itemize}
-  \item Feature Description
+  \item Feature Descriptor
   \item Feature Matching
   \item Image matching
   \item Blending
@@ -82,9 +82,9 @@ higher values, while bluer colors indicate lower values.
 
 Both algorithms performs well in identifying the corners or possible feature 
 locations. In the Harris algorithm column, we observe that the horizontal and 
-vertical lines appear in blue, which aligns with our expectations. However, we 
-did not anticipate that a diagonal line would appear in red and be classified as
-a corner. 
+vertical lines appear in blue, and the corners appear in red, which aligns with 
+our expectations. However, we did not anticipate that a diagonal line would 
+appear in red and be classified as a corner. 
 
 \begin{figure}[htbp]
     \centering
@@ -139,19 +139,372 @@ a corner.
     \begin{subfigure}[b]{0.3\textwidth}
         \centering\includegraphics[width=\textwidth]{nagoya-harris.jpg}
     \end{subfigure}
-    \caption{Comparison of Moravec and Harris Algorithms}
+    \caption{\small Comparison of Moravec and Harris Algorithms}
     \label{fig:feature-detection-comparison}
 \end{figure}
 
 \subsection{Threshold}
 
-\subsection{Maximal Suppress}
+To find the thresholds of the energy functions, we attempted the following two 
+methods.
 
-\subsection{Interactive Gadget}
+\subsubsection{Otsu's Method}
+When finding a threshold in a one-dimensional distribution, it is common to 
+apply Otsu's method. This algorithm separates values into two classes, aiming to 
+minimize the intra-class variances. Otsu's method performs optimally when the 
+values follow a bimodal distribution.
 
-\section{Feature Description}
+In our application of Otsu's method, it may return an acceptable threshold. 
+However, as shown in Figure \ref{fig:feature-value-distribution}, we observe 
+that the values from both algorithms do not follow a bimodal distribution. This
+makes the use of Otsu's method undesirable in this case.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.49\textwidth}
+        \centering\includegraphics[width=\textwidth]{moravec-values.png}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.49\textwidth}
+        \centering\includegraphics[width=\textwidth]{harris-values.png}
+    \end{subfigure}
+    \caption{\small
+        The energy value distributions of Moravec and Harris algorithms on the 
+        image of Nagoya Castle. The red dotted line indicates Otsu's threshold.
+    }
+    \label{fig:feature-value-distribution}
+\end{figure}
+
+\subsubsection{Heuristic}
+We developed another heuristic method to determine the threshold. As shown in 
+Figure \ref{fig:feature-value-distribution}, both distributions exhibit a spike.
+We believe this is the flat areas in the image, which should be a major pattern 
+in any image. When we include values above this spike, we obtain a moderate 
+number of features. However, if we include the spike itself, nearly the entire 
+image becomes a set of feature candidates. Note that the y-axis is on a 
+logarithmic scale, so the spike is more than ten times larger than the other 
+value counts. 
+
+We decided to use this spike value as the threshold, and it turned out to be 
+quite effective. The algorithm proceeds as follows: first, we quantize the 
+values into 256 bins. Then, we identify the bin with the highest count of values 
+and set it as the threshold. 
+
+As shown in Figure \ref{fig:feature-value-distribution}, this threshold is 
+slightly smaller then the one determined by Otsu's method. It includes more 
+possible candidates while avoiding the includsion of the entire image. As shown 
+in Figure \ref{fig:feature-thresholds}, Otsu's method fails to detect potential 
+features on the bottom-left roof tiles, while our heuristic method successfully 
+captures them.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering\includegraphics[width=\textwidth]{features-otsu.jpg}
+        \caption{Otsu's Method}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering\includegraphics[width=\textwidth]{features-heuristic.jpg}
+        \caption{Heuristic}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering\includegraphics[width=\textwidth]{features-heuristic-predecessor.jpg}
+        \caption{Heuristic include spike}
+    \end{subfigure}
+    \caption{\small
+        Features of the three different threshold methods. The Heuristic method 
+        finds the most possible candidates while avoiding including the entire 
+        image. 
+    }
+    \label{fig:feature-thresholds}
+\end{figure}
+
+\subsection{Non-maximum Suppression}
+
+Since we might have an small area of pixels all exceeding the threshold, making 
+all of them feature candidates. However, having many overlapping features is 
+undesirable. Thus we include non-maximum suppression. The idea is to select the 
+pixel with the maximum value in a small patch as the only feature. 
+
+In practice, we apply a maximum filter mask, that only include pixels which 
+appears to be the maximum value within a given distance. We then use this mask 
+to filter feature candidates to produce a sparse result. As shown in Figure 
+\ref{fig:feature-filter}, the unfiltered version marks nearly all roof tiles as 
+features. After applying non-maximum suppression, the features become more 
+spatially separated and tend to correspond to corner points in the tile pattern.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering\includegraphics[width=\textwidth]{features-unfiltered.jpg}
+        \caption{Unfiltered}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering\includegraphics[width=\textwidth]{features-filtered.jpg}
+        \caption{Filtered}
+    \end{subfigure}
+    \caption{\small Filtering effect of applying non-maximum suppression.}
+    \label{fig:feature-filter}
+\end{figure}
+
+\subsection{Interactive Tool}
+
+To better visualize and test the effect of threshold adjustment. We developed
+a small interactive tool that displays real-time feature detection results as 
+the user adjusts the threshold using a slider. With this tool, we observed that 
+in many images, there is a significant jump in the number of detected features 
+at a certain threshold. This observation prompted us to examine the distribution 
+of the energy values more closely, ultimately leading to the development of our 
+heuristic thresholding method. 
+
+\begin{figure}[htbp]
+    \centering 
+    \includegraphics[width=0.7\textwidth]{interactive-tool.png}
+    \caption{Interactive tool}
+    \label{fig:interactive-tool}
+\end{figure}
 
 \section{Feature Matching}
+
+\subsection{Feature Descriptor}
+
+Since our photos were taken using a tripod and identical camera settings, there 
+is minimal scaling or rotation between images. As a result, we found that simply 
+using a small patch around each feature point works well for this project.
+
+We experimented with patch sizes $l \in \set{3, 5, 7}$ across two types of 
+images -- BGR color channels and grayscale -- resulting in a total of six 
+combinations. Each patch is flattened into a one-dimensional vector to serve as 
+the feature descriptor. However, using $l = 7$ with BGR color channels results 
+in a descriptor dimension of $7\times 7\times 3 = 147$, which exceeds the 
+memory capacity of our device during the acceleration step, causing an
+out-of-memory error. Therefore, we were unable to obtain results for this 
+combination. 
+
+\subsection{Matching}
+
+To establish correspondences between two images, we first detect feature points 
+in the first image and extract a descriptor for each feature. Then, we compute 
+descriptors for every pixel in the second image and attempt to find the best 
+match for each feature. We define the best match as the pair of descriptors with 
+the minimum distance.
+
+Assume the first image is on the left and the second image be on the right. 
+Since the leftmost region of the first image and the rightmost region of the 
+second image do not overlap, including these areas in the matching process will 
+introduces unnecessary computation and disturbance. To address this, we 
+introduce a parameter that allows the user to specify the overlapping ratio 
+between the two images. This not only reduces the search space and speeds up the 
+matching process, but also decreases the number of unmatched features, thereby 
+improving overall matching accuracy.
+
+\subsubsection{Shift Heatmap}
+
+It is difficult to determine if all matches are correct without manually 
+checking each one. Therefore, we validate the matches by checking if they are 
+consistent with each other. If all the matches are correct, the shifts in the 
+matched coordinates should exhibit similar patterns due to the camera rotation. 
+To visualize this, we plot all the shifts on a heatmap to determine if they are 
+centralized around a single point. Conversely, a set of matches is considered 
+incorrect if the shifts are scattered. We use this visualization technique to 
+evaluate and compare the following results.
+
+The $x$ and $y$ axes of the heatmap represent the coordinate shifts of the 
+matched feature points. To better visualize the results, we zoomed into the 
+heatmap. Additionally, the shift count at each pixel location is passed through 
+the following transformation function $f$, which emphasizes lower values and 
+enhances the visibility of scattered patterns:
+$$
+    f(x) = \log(1+100x)
+$$
+
+\subsubsection{Acceleration}
+
+To accelerate the matching process, we employed search data structures such as 
+the K-D Tree. We spent additional time constructing a K-D tree for all 
+descriptors in the second image, which significantly reduced the time required 
+to find the nearest vector. We also experimented with Ball Tree and discovered 
+that K-D Tree performed slightly better in our case. 
+
+\begin{table}[htbp]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \begin{tabular}{|c|c|c|}
+            \hline
+            \textbf{Patch} & \textbf{BGR Color} & \textbf{Grayscale} \\
+            \hline
+            3 & 51 + 0 = 51 & 27 + 0 = 27 \\
+            \hline
+            5 & 127 + 17 = 144 & 62 + 6 = 68 \\
+            \hline
+            7 & \textit{out-of-memory} & 111 + 70 = 181 \\
+            \hline
+        \end{tabular}
+        \caption*{K-D Tree}
+    \end{minipage}
+    \hfill 
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \begin{tabular}{|c|c|c|}
+            \hline
+            \textbf{Patch} & \textbf{BGR Color} & \textbf{Grayscale} \\
+            \hline
+            3 & 45 + 5 = 50 & 25 + 2 = 26 \\
+            \hline
+            5 & 117 + 62 = 180 & 57 + 24 = 81 \\
+            \hline
+            7 & \textit{out-of-memory} & 103 + 106 = 209 \\
+            \hline
+        \end{tabular}
+        \caption*{Ball Tree}
+    \end{minipage}
+    \label{tab:match-time}
+    \caption{\small Construction and querying times for 500 features across 
+    different descriptor combinations, measured in seconds.}
+\end{table}
+
+\subsubsection{Match Filtering} \label{match-filtering}
+Sometimes, no correct match can be found for a feature in the first image. This 
+may be due to object movement between shots or simply because the feature is not 
+visible in the second image. In such cases, selecting the nearest but incorrect 
+match would negatively impact the subsequent image matching process. To address 
+this, we apply a unique filter to the matches.
+
+The approach is to accept a match only when there is a clear and unambiguous 
+correspondence. If there are two or more similar candidates, we discard the 
+feature to avoid mismatches. In practice, we search for the top two nearest 
+vectors in the second image’s descriptors and accept the match if the ratio of 
+their distances is smaller than a given threshold. 
+
+As shown in Table \ref{tab:feature-match-threshold}, we observe a significant amount of 
+mismatches when the filter is not applied (i.e., threshold = 1.0). The 
+corresponding heatmap also displays many scattered points, indicating 
+inconsistency among the shift vectors. After experimenting with various 
+parameters, we found that setting the threshold to 0.8 provides the best balance 
+between obtaining a sufficient number of matched features and minimizing 
+mismatches.
+
+$$
+    \frac{\text{nearest distance}}{\text{second-nearest distance}} < 
+    \text{threshold} = 0.8
+$$
+
+\begin{table}[htbp]
+    \centering
+    \renewcommand{\arraystretch}{1.5}
+    \begin{tabular}{|c|c|>{\centering\arraybackslash}m{0.34\textwidth}|>{\centering\arraybackslash}m{0.34\textwidth}|}
+        \hline
+        \textbf{Thresh} & \textbf{\#Match} & \textbf{Matchings} & \textbf{Heatmap} \\
+        \hline
+        1.0 & 500 
+            & \includegraphics[width=0.34\textwidth]{match-filter/thresh-10-match.jpg}
+            & \includegraphics[width=0.34\textwidth]{match-filter/thresh-10-heatmap.png} \\
+        \hline
+        0.9 & 271 
+            & \includegraphics[width=0.34\textwidth]{match-filter/thresh-09-match.jpg} 
+            & \includegraphics[width=0.34\textwidth]{match-filter/thresh-09-heatmap.png} \\
+        \hline
+        0.8 & 179
+            & \includegraphics[width=0.34\textwidth]{match-filter/thresh-08-match.jpg} 
+            & \includegraphics[width=0.34\textwidth]{match-filter/thresh-08-heatmap.png} \\
+        \hline
+        0.7 & 118
+            & \includegraphics[width=0.34\textwidth]{match-filter/thresh-07-match.jpg} 
+            & \includegraphics[width=0.34\textwidth]{match-filter/thresh-07-heatmap.png} \\
+        \hline
+    \end{tabular}
+    \caption{Comparison of match filtering and heatmaps across varying threshold values.}
+    \label{tab:feature-match-threshold}
+\end{table}
+
+\subsection{Results}
+
+We compared the results of the five possible feature descriptor combinations, 
+excluding one that could not be computed due to an out-of-memory error. All 
+matching results discussed below are filtered using a threshold of 0.8 as 
+mentioned in section \ref{match-filtering}.
+
+As shown in Table \ref{tab:descriptor-match-count}, using a patch size of 3 or 5 
+does not significantly affect the number of matched features. However, 
+increasing the patch size to 7 nearly doubles the match count. We hypothesize 
+that a higher-dimensional descriptor provides more distinctive information, 
+increasing the likelihood of finding a unique match that passes the threshold 
+filter. Nonetheless, the BGR color descriptor with size 5 has a higher 
+dimensionality (75) than the grayscale descriptor with size 7 (49). This 
+suggests that the three color channels in the BGR space may be highly 
+correlated, reducing the effective dimensionality of the descriptor.
+
+In addition to quantity, the quality of the matches must also be considered. As 
+shown in Tables \ref{tab:desciptor-matchings} and \ref{tab:desciptor-heatmaps}, 
+a patch size of 3 produces unstable results, with many visible mismatches and 
+highly scattered shift heatmaps. Increasing the patch size to 5 improves the 
+performance, with BGR descriptors outperforming grayscale. However, the 
+grayscale descriptor with patch size 7 clearly yields the most consistent 
+matches and a well-centered heatmap, indicating both high match quantity and 
+quality. Therefore, we choose this combination as our final descriptor.
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{|c|c|c|}
+        \hline
+        \textbf{Patch} & \textbf{BGR Color} & \textbf{Grayscale} \\
+        \hline
+        3 & 74 & 86 \\
+        \hline
+        5 & 96 & 101 \\
+        \hline
+        7 & \textit{OOM} & 179 \\
+        \hline
+    \end{tabular}
+    \caption{Number of matched features of different descriptor combinations.}
+    \label{tab:descriptor-match-count}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \renewcommand{\arraystretch}{1.5}
+    \begin{tabularx}{0.95\textwidth}{|c|X|X|}
+        \hline
+        \textbf{Patch} & \textbf{BGR Color} & \textbf{Grayscale} \\
+        \hline
+        3 & \includegraphics[width=0.9\linewidth]{descriptor/color-3-match.jpg} 
+          & \includegraphics[width=0.9\linewidth]{descriptor/gray-3-match.jpg} \\
+        \hline
+        5 & \includegraphics[width=0.9\linewidth]{descriptor/color-5-match.jpg} 
+          & \includegraphics[width=0.9\linewidth]{descriptor/gray-5-match.jpg} \\
+        \hline
+        7 & \textit{out-of-memory}
+          & \includegraphics[width=0.9\linewidth]{descriptor/gray-7-match.jpg} \\
+        \hline
+    \end{tabularx}
+    \caption{Matching results of different descriptors combinations.}
+    \label{tab:desciptor-matchings}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \renewcommand{\arraystretch}{1.5}
+    \begin{tabularx}{0.95\textwidth}{|c|X|X|}
+        \hline
+        \textbf{Patch} & \textbf{BGR Color} & \textbf{Grayscale} \\
+        \hline
+        3 & \includegraphics[width=0.9\linewidth]{descriptor/color-3-heatmap.png} 
+          & \includegraphics[width=0.9\linewidth]{descriptor/gray-3-heatmap.png} \\
+        \hline
+        5 & \includegraphics[width=0.9\linewidth]{descriptor/color-5-heatmap.png} 
+          & \includegraphics[width=0.9\linewidth]{descriptor/gray-5-heatmap.png} \\
+        \hline
+        7 & \textit{out-of-memory}
+          & \includegraphics[width=0.9\linewidth]{descriptor/gray-7-heatmap.png} \\
+        \hline
+    \end{tabularx}
+    \caption{Shift heatmaps of different descriptors combinations.}
+    \label{tab:desciptor-heatmaps}
+\end{table}
 
 \section{Image Matching}
 
@@ -329,6 +682,100 @@ as shown Figure~\ref{fig:end-to-end-alignment}.
 
   \caption{Effects of the end-to-end alignment}
   \label{fig:end-to-end-alignment}
+\end{figure}
+
+
+\section{Rectangling}
+
+We attempted to implement the algorithm proposed by \textbf{He et al. (2013)}, 
+but due to time constraints and the algorithm's complexity, we were only able to 
+complete the first stage. This stage involves using seam carving to synthesize 
+pixels that expand the panorama into a rectangular shape. The second stage, 
+which we did not completed, involves warping the image back and apply a 
+carefully designed energy function to guide a smooth reshaping process. 
+
+In this section, we present our findings and results based on implementing only 
+the seam carving stage. 
+
+\subsection{Seam Carving}
+
+Seam carving is an algorithm proposed by \textbf{Avidan and Shamir (2007)} that 
+primarily focuses on resizing rectangular images. In their original paper, the 
+authors define several energy functions to measure the importance of each pixel. 
+The algorithm then identifies an 8-connected path from one edge of the image to 
+the other that accumulates the least energy, which is referred to as a "seam". 
+Depending on whether the user wishes to increase or decrease the image size, the 
+seam is either duplicated or removed, respectively. 
+
+The key idea behind seam carving is to modify the less visually noticeable parts
+of the image, ensuring the modifications are seamless. One of the energy 
+functions proposed by the authors is:
+$$
+    e(\mathbf I) = \left| \frac{\partial}{\partial x} \mathbf I\right| + 
+    \left| \frac{\partial}{\partial y} \mathbf I\right|
+$$  
+This energy function aims to identify regions with minimal intensity change, 
+helping to avoid object edges that are more sensitive to human vision. 
+
+However, in the panorama rectangling problem, the goal is not to insert entire 
+row of pixels, but rather fill irregularly shaped gaps. To address this, 
+\textbf{He et al.} propose a method where we first identify a line of 
+empty pixels along the boundaries of the image. A sub-image is then extracted, 
+and the original seam carving technique is applied. This process is repeated 
+iteratively: a new empty segment is found, a sub-image is cut, and a seam is 
+added, until no more gaps remain, at which point the image is successfully 
+filled into a rectangular shape. This iterative process is referred to as 
+"local warping."
+
+\subsection{Implementation}
+
+In our implementation, we used the same energy function described earlier. To 
+find the seam with the least accumulated energy, we applied the dynamic 
+programming technique suggested in the paper, which reduces the time complexity 
+to be linear in relation to the image size.
+
+Since segments may appear along all four edges of the image, we need to handle 
+four different cases of seam carving, which complicates the implementation. To 
+simplify this, we defined an additional \code{Transformation} class. This class 
+helps cut the sub-image and transform it such that the segment is always placed 
+on the top edge. After applying the seam carving algorithm, we revert the 
+transformation to restore the correct coordinates. This approach significantly 
+reduces redundant code, making the implementation cleaner and more efficient.
+
+\begin{figure}[htbp]
+    \centering\includegraphics[width=0.9\textwidth]{seam-carving.png}
+    \caption{An example of seam insertion: the white line represents the 
+    duplicated seam, and the pixels above it are shifted upward by one pixel to 
+    fill the resulting gap.}
+\end{figure}
+
+\subsection{Results}
+
+If we apply only seam carving and local warping, without the subsequent global 
+warping, the resulting image will have visible cracks, as shown in Figure 
+\ref{fig:day-seam-failed}. This occurs because we apply seam carving only to a 
+sub-image rather than the entire image. When we insert a seam, we optimize the 
+energy function within the sub-image, but we also create a shift at the 
+boundaries between the sub-image and the original image. As we repeatedly insert 
+seams into the same sub-image, these shifts accumulate, leading to visible 
+artifacts.
+
+However, when we apply this process to a night-time photo, the shifts 
+predominantly affect the upper and lower parts of the image, which are dark and 
+less visible. As a result, the shifted artifacts are not as noticeable, and the 
+final image appears relatively artifact-free, as shown in Figure 
+\ref{fig:night-rect}.
+
+\begin{figure}[htbp]
+    \centering\includegraphics[width=0.6\textwidth]{day-seam-failed.png}
+    \caption{Artifacts produced by seam carving.}
+    \label{fig:day-seam-failed}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering\includegraphics[width=0.95\textwidth]{night-rect.jpg}
+    \caption{Final results after seam carving on the night-time image.}
+    \label{fig:night-rect}
 \end{figure}
 
 \end{document}

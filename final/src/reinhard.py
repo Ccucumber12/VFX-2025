@@ -39,7 +39,7 @@ def color_transfer_sequence(
         length: int = 50,
         result_dir: str = "reinhard",
         fps: int = 10,
-    ) -> None:
+    ) -> str:
     """
     Convert the color of `src_img` to `ref_img`. This function creates an 
     interpolation sequence of `length` images and a video. The images are stored
@@ -52,6 +52,8 @@ def color_transfer_sequence(
     - `length`: number of interpolations between source and result. 
     - `result_dir`: the results will be store under this directory under `./output`.
     - `fps`: fps of the output video. 
+
+    Return: The output directory path.
     """
     src_img = load_if_path(src_img)
     ref_img = load_if_path(ref_img)
@@ -70,6 +72,7 @@ def color_transfer_sequence(
         cv2.imwrite(f"{result_path}/sequence/{i}.jpg", img)
         anm.write(img)
     anm.release()
+    return result_path
         
 
 def main():
@@ -85,4 +88,4 @@ def main():
 
 if __name__ == '__main__':
     # main()
-    color_transfer_sequence("images/toyosato-day.jpg", "images/sunset-2.jpg")    
+    color_transfer_sequence("images/shirakawa.jpg", "images/sunset-1.jpg")    

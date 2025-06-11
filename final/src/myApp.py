@@ -1,11 +1,17 @@
 import streamlit as st
+import numpy as np
+import cv2
+import os
 from PIL import Image
-from reinhard import *
+
+from reinhard import color_transfer_sequence as color_transfer_reinhard
+from pitie import color_transfer_sequence as color_transfer_idt
 
 slider = st.slider("Step", 1, 50, 25)
 
 row1 = st.columns(3)
 row2 = st.columns(3)
+row3 = st.columns([13, 2], vertical_alignment="bottom")
 
 def reset_result_path():
     st.session_state.result_path = None
@@ -23,10 +29,16 @@ if reference:
 
 row1[2].html("<p style='font-size: 14px'>Result</p>")
 
-if st.button("Transfer", type="primary", disabled=(source == None or reference == None)):
-    source_image = cv2.cvtColor(np.array(Image.open(source)), cv2.COLOR_RGB2BGR)
-    reference_image = cv2.cvtColor(np.array(Image.open(reference)), cv2.COLOR_RGB2BGR)
-    st.session_state.result_path = color_transfer_sequence(source_image, reference_image)
+select = row3[0].selectbox("Transfer method", ("Reinhard", "Iterative distribution transfer"))
+if row3[1].button("Transfer", type="primary", disabled=(source == None or reference == None)):
+    if select == "Reinhard":
+        source_image = cv2.cvtColor(np.array(Image.open(source)), cv2.COLOR_RGB2BGR)
+        reference_image = cv2.cvtColor(np.array(Image.open(reference)), cv2.COLOR_RGB2BGR)
+        st.session_state.result_path = color_transfer_reinhard(source_image, reference_image)
+    else:
+        source_image = np.array(Image.open(source))
+        reference_image = np.array(Image.open(reference))
+        st.session_state.result_path = color_transfer_idt(source_image, reference_image)
 
 if st.session_state.result_path:
     source_name = os.path.splitext(source.name)[0]

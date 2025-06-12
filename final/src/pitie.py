@@ -39,20 +39,10 @@ def color_transfer_idt(src_img, ref_img, n_itr=20):
     
     return np.clip(src.reshape(src_img.shape), 0, 255).astype(np.uint8)
 
-def get_val(arr, x, y):
-    if 0 <= x < arr.shape[0] and 0 <= y < arr.shape[1]:
-        return arr[x, y]
-    else:
-        return 0.0
-
 def update_J(J, psi, phi, I):
-    h, w = J.shape
-    J = J.astype(np.float32)
-    J_new = np.copy(J).astype(np.float32)
-
-    J_pad = np.pad(J, 1, mode='edge').astype(np.float32)
-    psi_pad = np.pad(psi, 1, mode='edge').astype(np.float32)
-    I_pad = np.pad(I, 1, mode='edge').astype(np.float32)
+    J_pad = np.pad(J, 1).astype(np.float32)
+    psi_pad = np.pad(psi, 1).astype(np.float32)
+    I_pad = np.pad(I, 1).astype(np.float32)
 
     a1 = -(psi_pad[1:-1, :-2] + psi_pad[1:-1, 1:-1]) / 2  # left
     a2 = -(psi_pad[1:-1, 2:] + psi_pad[1:-1, 1:-1]) / 2   # right

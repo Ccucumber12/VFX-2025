@@ -49,18 +49,25 @@ def update_J(J, psi, phi, I):
     h, w = J.shape
     J = J.astype(np.float32)
     J_new = np.copy(J).astype(np.float32)
-    for x in range(h):
-        for y in range(w):
-            a1 = -(get_val(psi, x, y - 1) + get_val(psi, x, y)) / 2
-            a2 = -(get_val(psi, x, y + 1) + get_val(psi, x, y)) / 2
-            a3 = -(get_val(psi, x - 1, y) + get_val(psi, x, y)) / 2
-            a4 = -(get_val(psi, x + 1, y) + get_val(psi, x, y)) / 2
-            a5 = -(a1 + a2 + a3 + a4) + get_val(phi, x, y)
-            J_new[x, y] = (get_val(phi, x, y) * get_val(I, x, y)
-                           - a1 * (get_val(J, x, y - 1) - get_val(I, x, y - 1) + get_val(I, x, y))
-                           - a2 * (get_val(J, x, y + 1) - get_val(I, x, y + 1) + get_val(I, x, y))
-                           - a3 * (get_val(J, x - 1, y) - get_val(I, x - 1, y) + get_val(I, x, y))
-                           - a4 * (get_val(J, x + 1, y) - get_val(I, x + 1, y) + get_val(I, x, y))) / a5
+
+    J_pad = np.pad(J, 1, mode='edge').astype(np.float32)
+    psi_pad = np.pad(psi, 1, mode='edge').astype(np.float32)
+    I_pad = np.pad(I, 1, mode='edge').astype(np.float32)
+
+    a1 = -(psi_pad[1:-1, :-2] + psi_pad[1:-1, 1:-1]) / 2  # left
+    a2 = -(psi_pad[1:-1, 2:] + psi_pad[1:-1, 1:-1]) / 2   # right
+    a3 = -(psi_pad[:-2, 1:-1] + psi_pad[1:-1, 1:-1]) / 2  # up
+    a4 = -(psi_pad[2:, 1:-1] + psi_pad[1:-1, 1:-1]) / 2   # down
+    a5 = -(a1 + a2 + a3 + a4) + phi
+    
+    J_new = (
+        phi * I
+        - a1 * (J_pad[1:-1, :-2] - I_pad[1:-1, :-2] + I)
+        - a2 * (J_pad[1:-1, 2:] - I_pad[1:-1, 2:] + I)
+        - a3 * (J_pad[:-2, 1:-1] - I_pad[:-2, 1:-1] + I)
+        - a4 * (J_pad[2:, 1:-1] - I_pad[2:, 1:-1] + I)
+    ) / a5
+
     return np.clip(J_new, 0, 255).astype(np.uint8)
 
 def regrain(src_img, transfered_img, n_itr=10):

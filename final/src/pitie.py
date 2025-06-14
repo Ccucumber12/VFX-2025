@@ -91,8 +91,6 @@ def color_transfer_sequence(
     print("Interpolating...")
     result_img = color_transfer_idt(src_img, ref_img)
     regrain_img = regrain(src_img, result_img)
-    cv2.imwrite(f"{OUT_DIR}/result.jpg", result_img)
-    cv2.imwrite(f"{OUT_DIR}/result_regrain.jpg", regrain_img)
     seq = interpolate(src_img, regrain_img, length)
 
     print("Saving images...")

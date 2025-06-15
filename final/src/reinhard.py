@@ -3,6 +3,8 @@ from tqdm import tqdm
 from typing import Union
 
 from utils import *
+import matplotlib.pyplot as plt
+
 
 
 def srgb_to_linear(img: NDArray):
@@ -72,17 +74,17 @@ def image_stats(image):
     return mean.flatten(), std.flatten()   
 
 def color_transfer(src_img, ref_img):
-    # src_lab = cv2.cvtColor(src_img, cv2.COLOR_BGR2LAB).astype(np.float32)
-    # ref_lab = cv2.cvtColor(ref_img, cv2.COLOR_BGR2LAB).astype(np.float32)
-    src_lab = bgr2lab(src_img)
-    ref_lab = bgr2lab(ref_img)
+    src_lab = cv2.cvtColor(src_img, cv2.COLOR_BGR2LAB).astype(np.float32)
+    ref_lab = cv2.cvtColor(ref_img, cv2.COLOR_BGR2LAB).astype(np.float32)
+    # src_lab = bgr2lab(src_img)
+    # ref_lab = bgr2lab(ref_img)
 
     mean_src, std_src = image_stats(src_lab)
     mean_ref, std_ref = image_stats(ref_lab)
 
     result = (src_lab - mean_src) * (std_ref / std_src) + mean_ref
 
-    # return cv2.cvtColor(np.clip(result, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR)
+    return cv2.cvtColor(np.clip(result, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR)
     return lab2bgr(result)
 
 
@@ -137,17 +139,78 @@ def color_transfer_sequence(
     anm.release()
     return result_path
         
+def color_correlation():
+    IMG_DIR = f"{ROOT_DIR}/images"
+    img_bgr = cv2.imread(f'{IMG_DIR}/machi.jpg')
+    plot_channel_correlation(img_bgr, ["Blue", "Green", "Red"], f"{OUT_DIR}/bgr_correlation.png")
+
+    img_lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
+    plot_channel_correlation(img_lab, ["L", "A", "B"], f"{OUT_DIR}/lab_correlation.png")
+
+    img_lalphabeta = bgr2lab(img_bgr)
+    plot_channel_correlation(img_lalphabeta, ["L", "α", "β"], f"{OUT_DIR}/Lαβ_correlation.png")
+
+def plot_channel_correlation(image, channel_names, out_path='channel_correlation.png', sample_size=100000):
+    """
+    Plot pairwise correlation scatter plots for a 3-channel image.
+
+    Parameters:
+        image (np.ndarray): 3-channel image, shape (H, W, 3)
+        channel_names (list or tuple of str): Names of the 3 channels (e.g., ['L', 'α', 'β'])
+        out_path (str): Path to save the plot
+        sample_size (int): Max number of pixels to sample for scatter plot
+    """
+    assert image.ndim == 3 and image.shape[2] == 3, "Image must have 3 channels"
+    assert len(channel_names) == 3, "Must provide exactly 3 channel names"
+
+    # Flatten image to pixel list
+    pixels = image.reshape(-1, 3)
+    c1, c2, c3 = pixels[:, 0], pixels[:, 1], pixels[:, 2]
+
+    # Random sampling
+    if len(pixels) > sample_size:
+        idx = np.random.choice(len(pixels), sample_size, replace=False)
+        c1, c2, c3 = c1[idx], c2[idx], c3[idx]
+
+    # Plotting
+    plt.figure(figsize=(15, 5))
+
+    plt.subplot(1, 3, 1)
+    plt.scatter(c1, c2, s=1, alpha=0.3, color='black')
+    plt.xlabel(channel_names[0])
+    plt.ylabel(channel_names[1])
+    plt.title(f'{channel_names[0]} vs {channel_names[1]}')
+
+    plt.subplot(1, 3, 2)
+    plt.scatter(c1, c3, s=1, alpha=0.3, color='black')
+    plt.xlabel(channel_names[0])
+    plt.ylabel(channel_names[2])
+    plt.title(f'{channel_names[0]} vs {channel_names[2]}')
+
+    plt.subplot(1, 3, 3)
+    plt.scatter(c2, c3, s=1, alpha=0.3, color='black')
+    plt.xlabel(channel_names[1])
+    plt.ylabel(channel_names[2])
+    plt.title(f'{channel_names[1]} vs {channel_names[2]}')
+
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=300)
+    plt.close()
+
 
 def main():
     IMG_DIR = f"{ROOT_DIR}/images"
-    src_img = cv2.imread(f"{IMG_DIR}/toyosato-day.jpg")
-    ref_img = cv2.imread(f"{IMG_DIR}/toyosato-dusk.jpg")
+    src_img = cv2.imread(f"{IMG_DIR}/tree-dark.jpg")
+    ref_img = cv2.imread(f"{IMG_DIR}/tree-light.jpg")
 
     result_img = color_transfer(src_img, ref_img)
 
     show_image(result_img)
+    cv2.imwrite("result.png", result_img)
     # cv2.imwrite(f"{OUT_DIR}/result.jpg", result_img)   
 
 if __name__ == '__main__':
     main()
     # color_transfer_sequence("images/shirakawa.jpg", "images/sunset-2.jpg")    
+    # color_correlation()
+
